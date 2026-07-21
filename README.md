@@ -73,10 +73,3 @@ Workflow em `.github/workflows/ci.yml`:
 
 1. Build + testes Node.
 2. Push de imagem para ECR (`fiapx-core`) no `main` usando OIDC (`FIAPX_GITHUB_ACTIONS_ROLE_ARN`).
-
-## Documentacao complementar
-
-- `docs/IMPLEMENTATION.md` — resumo simples da implementacao feita.
-- `docs/VALIDATION_CHECKLIST.md` — checklist para validar CA-C01..CA-C14 e DoD.
-- `docs/REVIEW_NOTES.md` — decisoes e pontos de atencao para revisao.
-
