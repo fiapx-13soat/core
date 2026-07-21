@@ -1,0 +1,71 @@
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import amqp, { Channel, ConfirmChannel, ConsumeMessage } from 'amqplib';
+
+export interface EventEnvelope {
+  eventType: string;
+  schemaVersion: string;
+  eventId: string;
+  occurredAt: string;
+  correlationId: string;
+  payload: Record<string, unknown>;
+}
+
+@Injectable()
+export class RabbitMQService implements OnModuleDestroy {
+  private connection: any = null;
+  private confirmChannel: ConfirmChannel | null = null;
+  private consumeChannel: Channel | null = null;
+  private readonly logger = new Logger(RabbitMQService.name);
+
+  constructor(private readonly config: ConfigService) {}
+
+  async onModuleDestroy(): Promise<void> {
+    await this.consumeChannel?.close();
+    await this.confirmChannel?.close();
+    await this.connection?.close();
+  }
+
+  private async ensureConnected(): Promise<void> {
+    if (this.connection && this.confirmChannel && this.consumeChannel) {
+      return;
+    }
+    this.connection = await amqp.connect(this.config.getOrThrow<string>('app.amqpUrl'));
+    this.confirmChannel = await this.connection.createConfirmChannel();
+    this.consumeChannel = await this.connection.createChannel();
+  }
+
+  async publishConfirmed(exchange: string, routingKey: string, event: EventEnvelope): Promise<void> {
+    await this.ensureConnected();
+    const payload = Buffer.from(JSON.stringify(event));
+    await this.confirmChannel!.publish(exchange, routingKey, payload, {
+      contentType: 'application/json',
+      persistent: true
+    });
+    await this.confirmChannel!.waitForConfirms();
+  }
+
+  async consume(queue: string, onMessage: (msg: ConsumeMessage) => Promise<void>): Promise<void> {
+    await this.ensureConnected();
+    await this.consumeChannel!.consume(queue, async (msg) => {
+      if (!msg) {
+        return;
+      }
+      try {
+        await onMessage(msg);
+      } catch (error) {
+        this.logger.error('consumer callback failure', error as Error);
+        this.consumeChannel!.nack(msg, false, true);
+      }
+    });
+  }
+
+  ack(msg: ConsumeMessage): void {
+    this.consumeChannel?.ack(msg);
+  }
+
+  nack(msg: ConsumeMessage, requeue: boolean): void {
+    this.consumeChannel?.nack(msg, false, requeue);
+  }
+}
+
