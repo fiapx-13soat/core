@@ -1,5 +1,6 @@
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { StructuredLogger } from './common/structured-logger';
 
 jest.mock('@nestjs/core', () => ({ NestFactory: { create: jest.fn() } }));
 
@@ -17,7 +18,7 @@ describe('bootstrap', () => {
     process.env.NODE_ENV = prev;
 
     expect(NestFactory.create).toHaveBeenCalled();
-    expect(app.useLogger).toHaveBeenCalledWith(expect.any(Logger));
+    expect(app.useLogger).toHaveBeenCalledWith(expect.any(StructuredLogger));
     expect(app.useGlobalPipes).toHaveBeenCalledWith(expect.any(ValidationPipe));
     expect(listen).toHaveBeenCalledWith(1234);
   });

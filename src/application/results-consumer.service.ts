@@ -4,6 +4,7 @@ import { RabbitMQService } from '../infra/rabbitmq.service';
 import { DatabaseService } from '../infra/database.service';
 import { JobStatus } from '../domain/job-status';
 import { jobsCompletedTotal, jobsFailedTotal } from '../infra/metrics';
+import { runWithCorrelation } from '../common/correlation-context';
 
 const RESULTS_QUEUE = 'q.core.results';
 const RETRY_QUEUE = 'q.core.results.retry';
@@ -33,15 +34,27 @@ export class ResultsConsumerService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await this.rabbit.consume(RESULTS_QUEUE, async (message) => {
-      const attempt = Number(message.properties.headers?.['x-retry-count'] ?? 0);
-      try {
-        const data = JSON.parse(message.content.toString()) as ResultEvent;
-        await this.applyResultEvent(data);
-      } catch (error) {
-        await this.republishOnFailure(message, attempt, error as Error);
-      }
-      this.rabbit.ack(message);
+      // roda no escopo do correlationId da mensagem para os logs do consumo carregarem o id
+      await runWithCorrelation(this.correlationIdOf(message), async () => {
+        const attempt = Number(message.properties.headers?.['x-retry-count'] ?? 0);
+        try {
+          const data = JSON.parse(message.content.toString()) as ResultEvent;
+          await this.applyResultEvent(data);
+        } catch (error) {
+          await this.republishOnFailure(message, attempt, error as Error);
+        }
+        this.rabbit.ack(message);
+      });
     });
+  }
+
+  /** Best-effort: extrai o correlationId do envelope; undefined se a mensagem for malformada. */
+  private correlationIdOf(message: ConsumeMessage): string | undefined {
+    try {
+      return (JSON.parse(message.content.toString()) as ResultEvent).correlationId;
+    } catch {
+      return undefined;
+    }
   }
 
   /**

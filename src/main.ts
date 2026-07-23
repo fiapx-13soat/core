@@ -2,10 +2,11 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { StructuredLogger } from './common/structured-logger';
 
 export async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  app.useLogger(new Logger());
+  app.useLogger(new StructuredLogger());
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = app.get(ConfigService);

@@ -135,6 +135,35 @@ describe('JobsService', () => {
     await expect(service.getDownloadLink('u1', 'j1')).resolves.toEqual({ url: 'signed', expiresInSec: 900 });
   });
 
+  it('getJob devolve DTO camelCase sem vazar owner_id nem a storage key', async () => {
+    db.getJobById.mockResolvedValue({
+      id: 'j1',
+      owner_id: 'u1',
+      video_id: 'v1',
+      status: JobStatus.COMPLETED,
+      archive_storage_key: 'archives/j1.zip',
+      error_code: null,
+      error_message: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:01:00Z'
+    });
+
+    const dto = await service.getJob('u1', 'j1');
+
+    expect(dto).toEqual({
+      id: 'j1',
+      videoId: 'v1',
+      status: JobStatus.COMPLETED,
+      downloadAvailable: true,
+      errorCode: null,
+      errorMessage: null,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:01:00Z'
+    });
+    expect(dto).not.toHaveProperty('owner_id');
+    expect(dto).not.toHaveProperty('archive_storage_key');
+  });
+
   it('covers final job and missing archive branches', async () => {
     db.getJobById.mockResolvedValue({ status: JobStatus.COMPLETED, archive_storage_key: 'a.zip' });
     s3.exists.mockResolvedValue(false);

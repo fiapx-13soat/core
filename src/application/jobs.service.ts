@@ -25,6 +25,17 @@ export interface JobListItem {
   downloadAvailable: boolean;
 }
 
+export interface JobDetail {
+  id: string;
+  videoId: string;
+  status: JobStatus;
+  downloadAvailable: boolean;
+  errorCode: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 @Injectable()
 export class JobsService {
   constructor(
@@ -147,7 +158,8 @@ export class JobsService {
     return items.length === limit ? items[items.length - 1].createdAt : null;
   }
 
-  async getJob(userId: string, jobId: string): Promise<any> {
+  /** Linha crua do banco, para uso interno (cancel/reprocess/download). Não vaza para HTTP. */
+  private async getJobRow(userId: string, jobId: string): Promise<any> {
     const job = await this.db.getJobById(jobId, userId);
     if (!job) {
       throw new NotFoundException('job not found');
@@ -155,8 +167,36 @@ export class JobsService {
     return job;
   }
 
+  async getJob(userId: string, jobId: string): Promise<JobDetail> {
+    return this.toJobDetail(await this.getJobRow(userId, jobId));
+  }
+
+  // DTO de detalhe: camelCase, sem vazar owner_id nem a storage key interna. downloadAvailable
+  // segue a mesma regra da listagem; o link em si sai do /download-link.
+  private toJobDetail(row: {
+    id: string;
+    video_id: string;
+    status: JobStatus;
+    archive_storage_key: string | null;
+    error_code: string | null;
+    error_message: string | null;
+    created_at: string;
+    updated_at: string;
+  }): JobDetail {
+    return {
+      id: row.id,
+      videoId: row.video_id,
+      status: row.status,
+      downloadAvailable: row.status === JobStatus.COMPLETED && !!row.archive_storage_key,
+      errorCode: row.error_code,
+      errorMessage: row.error_message,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
   async cancelJob(userId: string, correlationId: string, jobId: string): Promise<{ status: JobStatus }> {
-    const job = await this.getJob(userId, jobId);
+    const job = await this.getJobRow(userId, jobId);
     if (isFinalStatus(job.status)) {
       throw new ConflictException('finalized jobs cannot be cancelled');
     }
@@ -184,7 +224,7 @@ export class JobsService {
   }
 
   async reprocessJob(userId: string, correlationId: string, jobId: string): Promise<{ jobId: string }> {
-    const job = await this.getJob(userId, jobId);
+    const job = await this.getJobRow(userId, jobId);
     const video = await this.db.getVideoById(job.video_id, userId);
     if (!video) {
       throw new NotFoundException('job not found');
@@ -221,7 +261,7 @@ export class JobsService {
   }
 
   async getDownloadLink(userId: string, jobId: string): Promise<{ url: string; expiresInSec: number }> {
-    const job = await this.getJob(userId, jobId);
+    const job = await this.getJobRow(userId, jobId);
     if (job.status !== JobStatus.COMPLETED || !job.archive_storage_key) {
       throw new ConflictException('job archive not available');
     }
