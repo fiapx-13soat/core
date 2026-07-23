@@ -1,7 +1,9 @@
-import amqp from 'amqplib';
+import * as amqp from 'amqplib';
 import { RabbitMQService } from './rabbitmq.service';
 
-jest.mock('amqplib', () => ({ __esModule: true, default: { connect: jest.fn() } }));
+// Sem `default`: amqplib é CommonJS puro. Mockar um default aqui esconderia o fato
+// de `import amqp from 'amqplib'` vir undefined em runtime.
+jest.mock('amqplib', () => ({ connect: jest.fn() }));
 
 describe('RabbitMQService', () => {
   it('connects, publishes, consumes and closes', async () => {

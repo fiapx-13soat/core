@@ -1,6 +1,10 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import amqp, { Channel, ConfirmChannel, ConsumeMessage } from 'amqplib';
+// amqplib é CommonJS e não tem default export; o tsconfig tem allowSyntheticDefaultImports
+// mas não esModuleInterop, então `import amqp from 'amqplib'` compila e vem undefined em
+// runtime. Namespace import, como no fiapx-notification.
+import * as amqp from 'amqplib';
+import type { Channel, ConfirmChannel, ConsumeMessage } from 'amqplib';
 
 export interface EventEnvelope {
   eventType: string;
