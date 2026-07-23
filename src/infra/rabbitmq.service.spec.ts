@@ -10,16 +10,17 @@ describe('RabbitMQService', () => {
     const ack = jest.fn();
     const nack = jest.fn();
     const consume = jest.fn().mockResolvedValue(undefined);
+    const prefetch = jest.fn().mockResolvedValue(undefined);
     const close = jest.fn().mockResolvedValue(undefined);
     const connection: any = {
       createConfirmChannel: jest.fn().mockResolvedValue({ publish, waitForConfirms, close }),
-      createChannel: jest.fn().mockResolvedValue({ consume, ack, nack, close }),
+      createChannel: jest.fn().mockResolvedValue({ consume, ack, nack, close, prefetch }),
       close
     };
     (amqp.connect as jest.Mock).mockResolvedValue(connection);
 
     const service = new RabbitMQService({ getOrThrow: () => 'amqp://localhost' } as any);
-    await service.publishConfirmed('ex', 'rk', { eventType: 'E', schemaVersion: '1', eventId: '1', occurredAt: '', correlationId: 'c', payload: {} });
+    await service.publishConfirmed('ex', 'rk', { eventType: 'E', schemaVersion: 1, eventId: '1', occurredAt: '', correlationId: 'c', payload: {} });
     await service.consume('q', async () => undefined);
     service.ack({} as any);
     service.nack({} as any, true);
@@ -28,6 +29,7 @@ describe('RabbitMQService', () => {
     expect(connection.createConfirmChannel).toHaveBeenCalled();
     expect(connection.createChannel).toHaveBeenCalled();
     expect(publish).toHaveBeenCalled();
+    expect(prefetch).toHaveBeenCalledWith(1);
     expect(consume).toHaveBeenCalled();
     expect(ack).toHaveBeenCalled();
     expect(nack).toHaveBeenCalled();
@@ -40,13 +42,14 @@ describe('RabbitMQService', () => {
     const ack = jest.fn();
     const nack = jest.fn();
     const close = jest.fn().mockResolvedValue(undefined);
+    const prefetch = jest.fn().mockResolvedValue(undefined);
     const consume = jest.fn(async (_queue: string, handler: any) => {
       await handler(null);
       await handler({ content: Buffer.from('x'), properties: { headers: {} } });
     });
     const connection: any = {
       createConfirmChannel: jest.fn().mockResolvedValue({ publish, waitForConfirms, close }),
-      createChannel: jest.fn().mockResolvedValue({ consume, ack, nack, close }),
+      createChannel: jest.fn().mockResolvedValue({ consume, ack, nack, close, prefetch }),
       close
     };
     (amqp.connect as jest.Mock).mockResolvedValue(connection);

@@ -40,7 +40,10 @@ describe('controllers', () => {
     };
     const jobs = new JobsController(jobsSvc);
     const internal = new InternalController(jobsSvc);
-    const health = new HealthController({ ready: jest.fn().mockResolvedValue(true) } as any);
+    const health = new HealthController(
+      { ready: jest.fn().mockResolvedValue(true) } as any,
+      { isHealthy: jest.fn().mockResolvedValue(true) } as any
+    );
     const metrics = new MetricsController();
     const videos = new VideosController(jobsSvc);
 

@@ -54,14 +54,27 @@ describe('JobsService', () => {
     expect(result.status).toBe(JobStatus.QUEUED);
     expect(db.createVideoAndJob).toHaveBeenCalled();
     expect(rabbit.publishConfirmed).toHaveBeenCalled();
+    // QUEUED tem que estar gravado antes do publish, senão o job.started do
+    // worker pode chegar com o job ainda em RECEIVED e travá-lo lá
+    expect(db.setJobStatus.mock.invocationCallOrder[0]).toBeLessThan(
+      rabbit.publishConfirmed.mock.invocationCallOrder[0]
+    );
   });
 
   it('fails when broker is unavailable', async () => {
     s3.upload.mockResolvedValue(undefined);
     db.createVideoAndJob.mockResolvedValue(undefined);
+    db.setJobStatus.mockResolvedValue(true);
     rabbit.publishConfirmed.mockRejectedValue(new Error('broker'));
     const file = { size: 1, originalname: 'video.mp4', buffer: Buffer.from('ftypaaaa'), mimetype: 'video/mp4' } as any;
     await expect(service.uploadVideo('u1', 'cid', file)).rejects.toThrow(BadGatewayException);
+    // não pode ficar QUEUED sem ninguém para consumir
+    expect(db.setJobStatus).toHaveBeenLastCalledWith(
+      expect.any(String),
+      'u1',
+      [JobStatus.QUEUED],
+      JobStatus.FAILED
+    );
   });
 
   it('lists jobs with and without cache', async () => {

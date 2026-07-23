@@ -66,7 +66,7 @@ export class JobsService {
 
     const event: EventEnvelope = {
       eventType: 'ProcessingRequested',
-      schemaVersion: '1',
+      schemaVersion: 1,
       eventId: randomUUID(),
       occurredAt: new Date().toISOString(),
       correlationId,
@@ -78,13 +78,18 @@ export class JobsService {
       }
     };
 
+    // QUEUED antes de publicar: o worker pode consumir e publicar job.started
+    // antes deste update, e a transição QUEUED -> PROCESSING não encontraria o
+    // job em QUEUED — ele ficaria preso em RECEIVED para sempre.
+    await this.db.setJobStatus(jobId, userId, [JobStatus.RECEIVED], JobStatus.QUEUED);
+
     try {
       await this.rabbit.publishConfirmed('video.processing', 'job.requested', event);
     } catch {
+      await this.db.setJobStatus(jobId, userId, [JobStatus.QUEUED], JobStatus.FAILED);
       throw new BadGatewayException('processing broker unavailable');
     }
 
-    await this.db.setJobStatus(jobId, userId, [JobStatus.RECEIVED], JobStatus.QUEUED);
     await this.db.insertAuditLog({
       ownerId: userId,
       action: 'upload_video',
@@ -139,7 +144,7 @@ export class JobsService {
     try {
       await this.rabbit.publishConfirmed('video.processing', 'job.cancelled', {
         eventType: 'ProcessingCancelled',
-        schemaVersion: '1',
+        schemaVersion: 1,
         eventId: randomUUID(),
         occurredAt: new Date().toISOString(),
         correlationId,
@@ -167,10 +172,12 @@ export class JobsService {
       status: JobStatus.RECEIVED
     });
 
+    await this.db.setJobStatus(newJobId, userId, [JobStatus.RECEIVED], JobStatus.QUEUED);
+
     try {
       await this.rabbit.publishConfirmed('video.processing', 'job.requested', {
         eventType: 'ProcessingRequested',
-        schemaVersion: '1',
+        schemaVersion: 1,
         eventId: randomUUID(),
         occurredAt: new Date().toISOString(),
         correlationId,
@@ -181,10 +188,10 @@ export class JobsService {
         }
       });
     } catch {
+      await this.db.setJobStatus(newJobId, userId, [JobStatus.QUEUED], JobStatus.FAILED);
       throw new BadGatewayException('processing broker unavailable');
     }
 
-    await this.db.setJobStatus(newJobId, userId, [JobStatus.RECEIVED], JobStatus.QUEUED);
     return { jobId: newJobId };
   }
 
