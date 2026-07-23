@@ -22,4 +22,3 @@ export function correlationIdFactory(_data: unknown, ctx: ExecutionContext): str
 }
 
 export const CorrelationId = createParamDecorator(correlationIdFactory);
-

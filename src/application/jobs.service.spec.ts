@@ -1,4 +1,11 @@
-import { BadGatewayException, BadRequestException, ConflictException, GoneException, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  ConflictException,
+  GoneException,
+  NotFoundException,
+  PayloadTooLargeException
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CacheService } from '../infra/cache.service';
 import { JobsService } from './jobs.service';
@@ -32,13 +39,26 @@ describe('JobsService', () => {
       return fallback;
     });
     config.getOrThrow.mockImplementation((key: string) => (key === 'app.s3BucketVideos' ? 'videos' : 'archives'));
-    service = new JobsService(db as any, rabbit as any, s3 as any, cache as any as CacheService, config as any as ConfigService);
+    service = new JobsService(
+      db as any,
+      rabbit as any,
+      s3 as any,
+      cache as any as CacheService,
+      config as any as ConfigService
+    );
   });
 
   it('rejects missing or invalid upload', async () => {
     await expect(service.uploadVideo('u1', 'cid')).rejects.toThrow(BadRequestException);
     await expect(service.uploadVideo('u1', 'cid', { size: 20 } as any)).rejects.toThrow(PayloadTooLargeException);
-    await expect(service.uploadVideo('u1', 'cid', { size: 1, originalname: 'a.txt', buffer: Buffer.from('x'), mimetype: 'text/plain' } as any)).rejects.toThrow(BadRequestException);
+    await expect(
+      service.uploadVideo('u1', 'cid', {
+        size: 1,
+        originalname: 'a.txt',
+        buffer: Buffer.from('x'),
+        mimetype: 'text/plain'
+      } as any)
+    ).rejects.toThrow(BadRequestException);
   });
 
   it('uploads and publishes job', async () => {
@@ -80,7 +100,9 @@ describe('JobsService', () => {
   it('lists jobs with and without cache', async () => {
     // cache guarda o DTO já mapeado (camelCase); fresh vem da linha crua do banco
     cache.get
-      .mockResolvedValueOnce(JSON.stringify([{ id: 'j0', videoId: 'v0', status: 'QUEUED', createdAt: '1', downloadAvailable: false }]))
+      .mockResolvedValueOnce(
+        JSON.stringify([{ id: 'j0', videoId: 'v0', status: 'QUEUED', createdAt: '1', downloadAvailable: false }])
+      )
       .mockResolvedValueOnce(null);
     db.listJobs.mockResolvedValue([
       { id: 'j1', video_id: 'v1', status: 'PROCESSING', archive_storage_key: null, created_at: '2' }
@@ -231,9 +253,11 @@ describe('JobsService', () => {
     db.getJobByIdAnyOwner.mockResolvedValue({ owner_id: 'u1', video_id: 'v1' });
     db.findUserById.mockResolvedValue({ email: 'e@example.com' });
     db.getVideoById.mockResolvedValue({ filename: 'a.mp4' });
-    await expect(service.getNotificationInfo('j1')).resolves.toEqual({ ownerEmail: 'e@example.com', videoFilename: 'a.mp4' });
+    await expect(service.getNotificationInfo('j1')).resolves.toEqual({
+      ownerEmail: 'e@example.com',
+      videoFilename: 'a.mp4'
+    });
     db.getJobByIdAnyOwner.mockResolvedValue(null);
     await expect(service.getNotificationInfo('missing')).rejects.toThrow(NotFoundException);
   });
 });
-

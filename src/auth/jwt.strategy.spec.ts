@@ -6,4 +6,3 @@ describe('JwtStrategy', () => {
     expect(strategy.validate({ sub: 'user-1' })).toEqual({ sub: 'user-1' });
   });
 });
-

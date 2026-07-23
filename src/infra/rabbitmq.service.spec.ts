@@ -22,7 +22,14 @@ describe('RabbitMQService', () => {
     (amqp.connect as jest.Mock).mockResolvedValue(connection);
 
     const service = new RabbitMQService({ getOrThrow: () => 'amqp://localhost' } as any);
-    await service.publishConfirmed('ex', 'rk', { eventType: 'E', schemaVersion: 1, eventId: '1', occurredAt: '', correlationId: 'c', payload: {} });
+    await service.publishConfirmed('ex', 'rk', {
+      eventType: 'E',
+      schemaVersion: 1,
+      eventId: '1',
+      occurredAt: '',
+      correlationId: 'c',
+      payload: {}
+    });
     await service.consume('q', async () => undefined);
     service.ack({} as any);
     service.nack({} as any, true);
@@ -64,4 +71,3 @@ describe('RabbitMQService', () => {
     expect(nack).toHaveBeenCalledWith(expect.any(Object), false, true);
   });
 });
-

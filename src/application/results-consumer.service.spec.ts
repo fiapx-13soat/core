@@ -62,9 +62,14 @@ describe('ResultsConsumerService', () => {
   it('applies events and acks', async () => {
     const messages: any[] = [];
     rabbit.consume.mockImplementation(async (_queue: string, onMessage: any) => {
-      const msg = (content: unknown) => ({ content: Buffer.from(JSON.stringify(content)), properties: { headers: {} } });
+      const msg = (content: unknown) => ({
+        content: Buffer.from(JSON.stringify(content)),
+        properties: { headers: {} }
+      });
       messages.push(onMessage(msg({ eventType: 'ProcessingStarted', payload: { jobId: 'j1' } })));
-      messages.push(onMessage(msg({ eventType: 'ArchiveReady', payload: { jobId: 'j1', archiveStorageKey: 'zip', sizeBytes: 1 } })));
+      messages.push(
+        onMessage(msg({ eventType: 'ArchiveReady', payload: { jobId: 'j1', archiveStorageKey: 'zip', sizeBytes: 1 } }))
+      );
       messages.push(onMessage(msg({ eventType: 'ProcessingCompleted', payload: { jobId: 'j1' } })));
       messages.push(onMessage(msg({ eventType: 'ProcessingFailed', payload: { jobId: 'j1' } })));
     });
@@ -87,11 +92,10 @@ describe('ResultsConsumerService', () => {
 
     await service.onModuleInit();
 
-    expect(rabbit.publishToQueue).toHaveBeenCalledWith(
-      'q.core.results.retry',
-      expect.any(Buffer),
-      { headers: { 'x-retry-count': 2 }, expiration: '5000' }
-    );
+    expect(rabbit.publishToQueue).toHaveBeenCalledWith('q.core.results.retry', expect.any(Buffer), {
+      headers: { 'x-retry-count': 2 },
+      expiration: '5000'
+    });
     expect(rabbit.ack).toHaveBeenCalled();
   });
 
@@ -129,11 +133,13 @@ describe('ResultsConsumerService', () => {
 
   it('acks unknown event types', async () => {
     rabbit.consume.mockImplementation(async (_queue: string, onMessage: any) => {
-      await onMessage({ content: Buffer.from(JSON.stringify({ eventType: 'SomethingElse', payload: { jobId: 'j1' } })), properties: { headers: {} } });
+      await onMessage({
+        content: Buffer.from(JSON.stringify({ eventType: 'SomethingElse', payload: { jobId: 'j1' } })),
+        properties: { headers: {} }
+      });
     });
 
     await service.onModuleInit();
     expect(rabbit.ack).toHaveBeenCalled();
   });
 });
-

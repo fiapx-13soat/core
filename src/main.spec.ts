@@ -9,7 +9,12 @@ describe('bootstrap', () => {
     const prev = process.env.NODE_ENV;
     process.env.NODE_ENV = 'test';
     const listen = jest.fn().mockResolvedValue(undefined);
-    const app = { useLogger: jest.fn(), useGlobalPipes: jest.fn(), get: jest.fn().mockReturnValue({ get: () => 1234 }), listen };
+    const app = {
+      useLogger: jest.fn(),
+      useGlobalPipes: jest.fn(),
+      get: jest.fn().mockReturnValue({ get: () => 1234 }),
+      listen
+    };
     (NestFactory.create as jest.Mock).mockResolvedValue(app);
 
     const { bootstrap } = require('./main');
@@ -23,4 +28,3 @@ describe('bootstrap', () => {
     expect(listen).toHaveBeenCalledWith(1234);
   });
 });
-

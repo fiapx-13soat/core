@@ -52,4 +52,3 @@ describe('job status transitions', () => {
     expect(isFinalStatus(JobStatus.RECEIVED)).toBe(false);
   });
 });
-

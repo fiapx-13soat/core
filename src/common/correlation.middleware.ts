@@ -19,4 +19,3 @@ export class CorrelationMiddleware implements NestMiddleware {
     runWithCorrelation(correlationId, () => next());
   }
 }
-

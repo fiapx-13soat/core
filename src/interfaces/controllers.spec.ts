@@ -8,7 +8,10 @@ import { VideosController } from './videos.controller';
 
 describe('controllers', () => {
   it('delegates auth and user actions', async () => {
-    const authSvc: any = { login: jest.fn().mockResolvedValue({ userId: 'u1', tokens: { a: 1 } }), refresh: jest.fn().mockResolvedValue({ b: 2 }) };
+    const authSvc: any = {
+      login: jest.fn().mockResolvedValue({ userId: 'u1', tokens: { a: 1 } }),
+      refresh: jest.fn().mockResolvedValue({ b: 2 })
+    };
     const db: any = { insertAuditLog: jest.fn() };
     const auth = new AuthController(authSvc, db);
     await auth.login({ email: 'e', password: 'p' }, 'cid');
@@ -70,4 +73,3 @@ describe('controllers', () => {
     expect(videos).toBeInstanceOf(VideosController);
   });
 });
-

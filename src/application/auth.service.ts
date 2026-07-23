@@ -72,11 +72,7 @@ export class AuthService {
     const refreshToken = this.newOpaqueToken();
     const refreshHash = this.hashToken(refreshToken);
 
-    await this.db.saveRefreshToken(
-      userId,
-      refreshHash,
-      new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000)
-    );
+    await this.db.saveRefreshToken(userId, refreshHash, new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000));
 
     return {
       accessToken,
@@ -93,4 +89,3 @@ export class AuthService {
     return createHash('sha256').update(raw).digest('hex');
   }
 }
-

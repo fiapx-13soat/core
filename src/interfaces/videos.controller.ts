@@ -22,4 +22,3 @@ export class VideosController {
     return this.jobs.uploadVideo(userId, correlationId, file);
   }
 }
-

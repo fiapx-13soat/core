@@ -13,10 +13,7 @@ export class AuthController {
   ) {}
 
   @Post('/login')
-  async login(
-    @Body() body: LoginDto,
-    @CorrelationId() correlationId: string
-  ) {
+  async login(@Body() body: LoginDto, @CorrelationId() correlationId: string) {
     const result = await this.auth.login(body.email, body.password);
     await this.db.insertAuditLog({
       ownerId: result.userId,
@@ -32,4 +29,3 @@ export class AuthController {
     return this.auth.refresh(body.refreshToken);
   }
 }
-

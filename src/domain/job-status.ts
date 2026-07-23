@@ -34,4 +34,3 @@ export function allowedFrom(target: JobStatus): JobStatus[] {
 export function isFinalStatus(status: JobStatus): boolean {
   return [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.EXPIRED].includes(status);
 }
-

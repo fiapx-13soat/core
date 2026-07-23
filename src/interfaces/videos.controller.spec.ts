@@ -8,4 +8,3 @@ describe('VideosController', () => {
     expect(jobs.uploadVideo).toHaveBeenCalledWith('u1', 'cid', { originalname: 'v.mp4' });
   });
 });
-

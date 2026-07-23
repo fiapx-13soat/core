@@ -29,7 +29,7 @@ export class MetricsInterceptor implements NestInterceptor {
         const labels = { method: req.method, route, status: String(res.statusCode) };
         httpRequestsTotal.inc(labels);
         endTimer(labels);
-      }),
+      })
     );
   }
 }

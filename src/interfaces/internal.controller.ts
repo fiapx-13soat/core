@@ -10,4 +10,3 @@ export class InternalController {
     return this.jobs.getNotificationInfo(jobId);
   }
 }
-

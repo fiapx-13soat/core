@@ -7,7 +7,11 @@ import { DatabaseService } from '../infra/database.service';
 export class UsersService {
   constructor(private readonly db: DatabaseService) {}
 
-  async createUser(input: { email: string; name: string; password: string }): Promise<{ id: string; email: string; name: string }> {
+  async createUser(input: {
+    email: string;
+    name: string;
+    password: string;
+  }): Promise<{ id: string; email: string; name: string }> {
     const id = randomUUID();
     const email = input.email.toLowerCase().trim();
     const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
@@ -24,7 +28,10 @@ export class UsersService {
     return { id, email, name: input.name.trim() };
   }
 
-  async getOwnUser(userId: string, requestedId: string): Promise<{ id: string; email: string; name: string; active: boolean }> {
+  async getOwnUser(
+    userId: string,
+    requestedId: string
+  ): Promise<{ id: string; email: string; name: string; active: boolean }> {
     if (userId !== requestedId) {
       throw new NotFoundException('user not found');
     }
@@ -49,4 +56,3 @@ export class UsersService {
     await this.db.deactivateUser(userId);
   }
 }
-

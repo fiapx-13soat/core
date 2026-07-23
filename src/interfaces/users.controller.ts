@@ -27,11 +27,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(204)
   @Patch('/users/:id')
-  async patchOwn(
-    @CurrentUserId() userId: string,
-    @Param('id') id: string,
-    @Body() body: UpdateUserDto
-  ): Promise<void> {
+  async patchOwn(@CurrentUserId() userId: string, @Param('id') id: string, @Body() body: UpdateUserDto): Promise<void> {
     await this.users.patchOwnUser(userId, id, body.name);
   }
 
@@ -47,4 +43,3 @@ export class UsersController {
     await this.db.insertAuditLog({ ownerId: userId, action: 'delete_account', correlationId, metadata: {} });
   }
 }
-

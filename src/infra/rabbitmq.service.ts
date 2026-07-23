@@ -106,4 +106,3 @@ export class RabbitMQService implements OnModuleDestroy {
     }
   }
 }
-

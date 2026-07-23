@@ -18,4 +18,3 @@ export default registerAs('app', () => ({
   uploadRateLimitPerMinute: Number(process.env.UPLOAD_RATE_LIMIT_PER_MIN ?? '20'),
   uploadRateLimitBurst: Number(process.env.UPLOAD_RATE_LIMIT_BURST ?? '5')
 }));
-

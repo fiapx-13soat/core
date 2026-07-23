@@ -8,7 +8,6 @@ export class MetricsController {
   @Get('/metrics')
   @Header('Content-Type', register.contentType)
   async metrics(): Promise<string> {
-	return register.metrics();
+    return register.metrics();
   }
 }
-

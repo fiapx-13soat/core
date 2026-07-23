@@ -15,4 +15,3 @@ describe('current user decorators', () => {
     expect(currentUserId({} as any)).toBe('');
   });
 });
-

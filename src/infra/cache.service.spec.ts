@@ -51,4 +51,3 @@ describe('CacheService', () => {
     await expect(service.invalidateOwnerJobs('u1')).resolves.toBeUndefined();
   });
 });
-

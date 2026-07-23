@@ -30,7 +30,16 @@ describe('DatabaseService', () => {
     await service.deactivateUser('1');
     await service.saveRefreshToken('1', 'h', new Date());
     await service.findValidRefreshToken('h');
-    await service.createVideoAndJob({ videoId: 'v', ownerId: '1', filename: 'f', contentType: 'c', sizeBytes: 1, checksum: 'c', storageKey: 'k', jobId: 'j' });
+    await service.createVideoAndJob({
+      videoId: 'v',
+      ownerId: '1',
+      filename: 'f',
+      contentType: 'c',
+      sizeBytes: 1,
+      checksum: 'c',
+      storageKey: 'k',
+      jobId: 'j'
+    });
     await service.setJobStatus('j', '1', [JobStatus.RECEIVED], JobStatus.QUEUED);
     await service.createJob({ jobId: 'j2', ownerId: '1', videoId: 'v', status: JobStatus.RECEIVED });
     await service.getJobById('j', '1');
@@ -70,9 +79,7 @@ describe('DatabaseService', () => {
 
     it('devolve false quando nenhuma linha casa — transição inválida', async () => {
       mockPool.query.mockResolvedValue({ rowCount: 0 });
-      await expect(
-        service.setJobStatus('j1', null, [JobStatus.PROCESSING], JobStatus.COMPLETED)
-      ).resolves.toBe(false);
+      await expect(service.setJobStatus('j1', null, [JobStatus.PROCESSING], JobStatus.COMPLETED)).resolves.toBe(false);
     });
   });
 
@@ -90,4 +97,3 @@ describe('DatabaseService', () => {
     expect(mockPool.end).toHaveBeenCalled();
   });
 });
-

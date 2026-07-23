@@ -29,10 +29,12 @@ describe('S3Service', () => {
   it('returns false on missing head object and rewrites public url', async () => {
     send.mockRejectedValueOnce(new Error('missing'));
     (getSignedUrl as jest.Mock).mockResolvedValue('https://internal/signed');
-    const service = new S3Service({ get: (key: string) => (key === 'app.awsRegion' ? 'us-east-1' : key === 'app.s3PublicEndpoint' ? 'https://public/base' : '') } as any);
+    const service = new S3Service({
+      get: (key: string) =>
+        key === 'app.awsRegion' ? 'us-east-1' : key === 'app.s3PublicEndpoint' ? 'https://public/base' : ''
+    } as any);
     await expect(service.exists('b', 'k')).resolves.toBe(false);
     await expect(service.presignedGet('b', 'k', 999)).resolves.toBe('https://public/base/signed');
     expect(GetObjectCommand).toHaveBeenCalled();
   });
 });
-

@@ -49,4 +49,3 @@ describe('env config', () => {
     expect(cfg.s3BucketArchives).toBe('archives');
   });
 });
-

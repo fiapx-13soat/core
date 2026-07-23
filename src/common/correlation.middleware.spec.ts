@@ -26,4 +26,3 @@ describe('CorrelationMiddleware', () => {
     expect(req.correlationId.length).toBeGreaterThan(0);
   });
 });
-

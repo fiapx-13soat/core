@@ -141,7 +141,12 @@ export class DatabaseService implements OnModuleDestroy {
     }
   }
 
-  async setJobStatus(jobId: string, ownerId: string | null, fromStatuses: JobStatus[], toStatus: JobStatus): Promise<boolean> {
+  async setJobStatus(
+    jobId: string,
+    ownerId: string | null,
+    fromStatuses: JobStatus[],
+    toStatus: JobStatus
+  ): Promise<boolean> {
     const params: unknown[] = [toStatus, jobId];
     let sql = 'update processing_jobs set status = $1, updated_at = now() where id = $2';
     if (ownerId) {
@@ -165,7 +170,10 @@ export class DatabaseService implements OnModuleDestroy {
   }
 
   async getJobById(jobId: string, ownerId: string): Promise<JobRow | null> {
-    const { rows } = await this.query<JobRow>('select * from processing_jobs where id = $1 and owner_id = $2', [jobId, ownerId]);
+    const { rows } = await this.query<JobRow>('select * from processing_jobs where id = $1 and owner_id = $2', [
+      jobId,
+      ownerId
+    ]);
     return rows[0] ?? null;
   }
 
@@ -177,8 +185,7 @@ export class DatabaseService implements OnModuleDestroy {
   async listJobs(filters: JobListFilters): Promise<JobListRow[]> {
     const values: unknown[] = [filters.ownerId];
     let idx = 2;
-    let sql =
-      'select id, video_id, status, archive_storage_key, created_at from processing_jobs where owner_id = $1';
+    let sql = 'select id, video_id, status, archive_storage_key, created_at from processing_jobs where owner_id = $1';
     if (filters.status) {
       sql += ` and status = $${idx++}`;
       values.push(filters.status);
@@ -202,7 +209,10 @@ export class DatabaseService implements OnModuleDestroy {
   }
 
   async getVideoById(videoId: string, ownerId: string): Promise<VideoRow | null> {
-    const { rows } = await this.query<VideoRow>('select * from videos where id = $1 and owner_id = $2', [videoId, ownerId]);
+    const { rows } = await this.query<VideoRow>('select * from videos where id = $1 and owner_id = $2', [
+      videoId,
+      ownerId
+    ]);
     return rows[0] ?? null;
   }
 
@@ -216,7 +226,10 @@ export class DatabaseService implements OnModuleDestroy {
          on conflict (job_id) do update set storage_key = excluded.storage_key, size_bytes = excluded.size_bytes`,
         [jobId, storageKey, sizeBytes]
       );
-      await client.query('update processing_jobs set archive_storage_key = $2, updated_at = now() where id = $1', [jobId, storageKey]);
+      await client.query('update processing_jobs set archive_storage_key = $2, updated_at = now() where id = $1', [
+        jobId,
+        storageKey
+      ]);
       await client.query('commit');
     } catch (error) {
       await client.query('rollback');
@@ -226,7 +239,12 @@ export class DatabaseService implements OnModuleDestroy {
     }
   }
 
-  async insertAuditLog(input: { ownerId: string | null; action: string; correlationId: string; metadata: Record<string, unknown> }): Promise<void> {
+  async insertAuditLog(input: {
+    ownerId: string | null;
+    action: string;
+    correlationId: string;
+    metadata: Record<string, unknown>;
+  }): Promise<void> {
     await this.query(
       `insert into audit_logs (id, owner_id, action, correlation_id, metadata_json, created_at)
        values (gen_random_uuid(), $1, $2, $3, $4::jsonb, now())`,
@@ -242,4 +260,3 @@ export class DatabaseService implements OnModuleDestroy {
     return maybe.code === '23505';
   }
 }
-

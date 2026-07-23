@@ -52,7 +52,7 @@ export class StructuredLogger implements LoggerService {
       level,
       time: new Date().toISOString(),
       context,
-      correlationId: getCorrelationId(),
+      correlationId: getCorrelationId()
     };
 
     if (message !== null && typeof message === 'object') {

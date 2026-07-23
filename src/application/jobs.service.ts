@@ -47,7 +47,11 @@ export class JobsService {
     private readonly config: ConfigService
   ) {}
 
-  async uploadVideo(userId: string, correlationId: string, file?: Express.Multer.File): Promise<{ jobId: string; status: JobStatus }> {
+  async uploadVideo(
+    userId: string,
+    correlationId: string,
+    file?: Express.Multer.File
+  ): Promise<{ jobId: string; status: JobStatus }> {
     if (!file) {
       throw new BadRequestException('missing video file');
     }
@@ -66,12 +70,7 @@ export class JobsService {
     const extension = file.originalname.slice(file.originalname.lastIndexOf('.'));
     const storageKey = `videos/${userId}/${videoId}${extension || '.mp4'}`;
 
-    await this.s3.upload(
-      this.config.getOrThrow<string>('app.s3BucketVideos'),
-      storageKey,
-      file.buffer,
-      file.mimetype
-    );
+    await this.s3.upload(this.config.getOrThrow<string>('app.s3BucketVideos'), storageKey, file.buffer, file.mimetype);
 
     const jobId = randomUUID();
     await this.db.createVideoAndJob({
@@ -122,7 +121,10 @@ export class JobsService {
     return { jobId, status: JobStatus.QUEUED };
   }
 
-  async listJobs(userId: string, query: { status?: string; from?: string; to?: string; cursor?: string; limit?: string }): Promise<{ items: JobListItem[]; nextCursor: string | null }> {
+  async listJobs(
+    userId: string,
+    query: { status?: string; from?: string; to?: string; cursor?: string; limit?: string }
+  ): Promise<{ items: JobListItem[]; nextCursor: string | null }> {
     const limit = Math.min(Number(query.limit ?? 20), 100);
     const from = query.from ? new Date(query.from) : undefined;
     const to = query.to ? new Date(query.to) : undefined;
@@ -304,4 +306,3 @@ export class JobsService {
     return hasFtyp || isRiffAvi || isMkv || ext === 'webm';
   }
 }
-

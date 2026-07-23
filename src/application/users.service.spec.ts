@@ -61,4 +61,3 @@ describe('UsersService', () => {
     await expect(service.deleteOwnUser('u1', 'u2')).rejects.toThrow(NotFoundException);
   });
 });
-

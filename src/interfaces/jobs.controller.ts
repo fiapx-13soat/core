@@ -22,20 +22,12 @@ export class JobsController {
   }
 
   @Post('/:id/cancel')
-  cancel(
-    @CurrentUserId() userId: string,
-    @CorrelationId() correlationId: string,
-    @Param('id') id: string
-  ) {
+  cancel(@CurrentUserId() userId: string, @CorrelationId() correlationId: string, @Param('id') id: string) {
     return this.jobs.cancelJob(userId, correlationId, id);
   }
 
   @Post('/:id/reprocess')
-  reprocess(
-    @CurrentUserId() userId: string,
-    @CorrelationId() correlationId: string,
-    @Param('id') id: string
-  ) {
+  reprocess(@CurrentUserId() userId: string, @CorrelationId() correlationId: string, @Param('id') id: string) {
     return this.jobs.reprocessJob(userId, correlationId, id);
   }
 
@@ -44,4 +36,3 @@ export class JobsController {
     return this.jobs.getDownloadLink(userId, id);
   }
 }
-
