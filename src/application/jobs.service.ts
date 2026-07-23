@@ -221,6 +221,11 @@ export class JobsService {
     if (!video) {
       throw new NotFoundException('job not found');
     }
+    // o vídeo original pode ter expirado no bucket — não reenfileira o que não dá para processar
+    const videosBucket = this.config.getOrThrow<string>('app.s3BucketVideos');
+    if (!(await this.s3.exists(videosBucket, video.storage_key))) {
+      throw new GoneException('source video no longer available');
+    }
     const newJobId = randomUUID();
     await this.db.createJob({
       jobId: newJobId,
@@ -241,7 +246,8 @@ export class JobsService {
         payload: {
           jobId: newJobId,
           ownerId: userId,
-          videoStorageKey: video.storage_key
+          videoStorageKey: video.storage_key,
+          parameters: { fps: 1 }
         }
       });
     } catch {
@@ -261,6 +267,9 @@ export class JobsService {
     const bucket = this.config.getOrThrow<string>('app.s3BucketArchives');
     const exists = await this.s3.exists(bucket, job.archive_storage_key);
     if (!exists) {
+      // ZIP sumiu (lifecycle do bucket): marca o job EXPIRED — antes ele ficava COMPLETED
+      // para sempre, com o download dando 410 sem o status refletir isso.
+      await this.db.setJobStatus(jobId, userId, allowedFrom(JobStatus.EXPIRED), JobStatus.EXPIRED);
       throw new GoneException('archive expired');
     }
 

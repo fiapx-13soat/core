@@ -12,18 +12,33 @@ describe('ResultsConsumerService', () => {
     nack: jest.fn(),
     publishToQueue: jest.fn().mockResolvedValue(undefined)
   };
-  const db: any = { setJobStatus: jest.fn(), setArchive: jest.fn() };
+  const db: any = { setJobStatus: jest.fn(), setArchive: jest.fn(), getJobByIdAnyOwner: jest.fn() };
+  const cache: any = { invalidateOwnerJobs: jest.fn().mockResolvedValue(undefined) };
   let service: ResultsConsumerService;
 
   beforeEach(() => {
     jest.resetAllMocks();
-    service = new ResultsConsumerService(rabbit as any, db as any);
+    db.getJobByIdAnyOwner.mockResolvedValue({ owner_id: 'u1' });
+    service = new ResultsConsumerService(rabbit as any, db as any, cache as any);
   });
 
   it('subscribes to queue on init', async () => {
     rabbit.consume.mockResolvedValue(undefined);
     await service.onModuleInit();
     expect(rabbit.consume).toHaveBeenCalledWith('q.core.results', expect.any(Function));
+  });
+
+  it('invalida o cache do dono ao aplicar uma transição (E1)', async () => {
+    db.setJobStatus.mockResolvedValue(true);
+    db.getJobByIdAnyOwner.mockResolvedValue({ owner_id: 'owner-9' });
+    const msg = (c: unknown) => ({ content: Buffer.from(JSON.stringify(c)), properties: { headers: {} } });
+    rabbit.consume.mockImplementation(async (_q: string, onMessage: any) => {
+      await onMessage(msg({ eventType: 'ProcessingStarted', payload: { jobId: 'j1' } }));
+    });
+
+    await service.onModuleInit();
+
+    expect(cache.invalidateOwnerJobs).toHaveBeenCalledWith('owner-9');
   });
 
   it('conta jobs_completed/failed só quando a transição terminal se aplica', async () => {

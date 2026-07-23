@@ -30,5 +30,27 @@ export class CacheService implements OnModuleDestroy {
     }
     await this.redis.set(key, value, 'EX', ttlSeconds);
   }
+
+  /**
+   * Invalida o cache de listagem de um dono (chaves `jobs:{ownerId}:*`). Usado quando o status
+   * de um job muda, para a lista não ficar defasada até o TTL. SCAN (não KEYS) para não bloquear
+   * o Redis.
+   */
+  async invalidateOwnerJobs(ownerId: string): Promise<void> {
+    if (!this.redis) {
+      return;
+    }
+    const pattern = `jobs:${ownerId}:*`;
+    const keys: string[] = [];
+    let cursor = '0';
+    do {
+      const [next, batch] = await this.redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = next;
+      keys.push(...batch);
+    } while (cursor !== '0');
+    if (keys.length > 0) {
+      await this.redis.del(...keys);
+    }
+  }
 }
 

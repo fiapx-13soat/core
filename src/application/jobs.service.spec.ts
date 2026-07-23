@@ -171,6 +171,36 @@ describe('JobsService', () => {
     await expect(service.getDownloadLink('u1', 'j1')).rejects.toThrow(GoneException);
   });
 
+  it('download-link com ZIP ausente marca o job EXPIRED (E3)', async () => {
+    db.getJobById.mockResolvedValue({ status: JobStatus.COMPLETED, archive_storage_key: 'a.zip' });
+    s3.exists.mockResolvedValue(false);
+    db.setJobStatus.mockResolvedValue(true);
+
+    await expect(service.getDownloadLink('u1', 'j1')).rejects.toThrow(GoneException);
+    expect(db.setJobStatus).toHaveBeenCalledWith('j1', 'u1', allowedFrom(JobStatus.EXPIRED), JobStatus.EXPIRED);
+  });
+
+  it('reprocess recusa se o vídeo original sumiu do S3 (E2)', async () => {
+    db.getJobById.mockResolvedValue({ status: JobStatus.COMPLETED, video_id: 'v1', archive_storage_key: 'a.zip' });
+    db.getVideoById.mockResolvedValue({ storage_key: 'video-key' });
+    s3.exists.mockResolvedValue(false); // vídeo não existe mais
+    await expect(service.reprocessJob('u1', 'cid', 'j1')).rejects.toThrow(GoneException);
+    expect(rabbit.publishConfirmed).not.toHaveBeenCalled();
+  });
+
+  it('reprocess publica com parameters (E2)', async () => {
+    db.getJobById.mockResolvedValue({ status: JobStatus.COMPLETED, video_id: 'v1', archive_storage_key: 'a.zip' });
+    db.getVideoById.mockResolvedValue({ storage_key: 'video-key' });
+    s3.exists.mockResolvedValue(true);
+    db.setJobStatus.mockResolvedValue(true);
+    rabbit.publishConfirmed.mockResolvedValue(undefined);
+
+    await service.reprocessJob('u1', 'cid', 'j1');
+
+    const [, , event] = rabbit.publishConfirmed.mock.calls[0];
+    expect(event.payload).toMatchObject({ videoStorageKey: 'video-key', parameters: { fps: 1 } });
+  });
+
   it('covers not-found and conflict branches', async () => {
     db.getJobById.mockResolvedValue(null);
     await expect(service.getJob('u1', 'missing')).rejects.toThrow(NotFoundException);
@@ -189,6 +219,7 @@ describe('JobsService', () => {
     await expect(service.reprocessJob('u1', 'cid', 'j1')).rejects.toThrow(NotFoundException);
 
     db.getVideoById.mockResolvedValue({ storage_key: 'video-key' });
+    s3.exists.mockResolvedValue(true); // vídeo original ainda existe
     rabbit.publishConfirmed.mockRejectedValueOnce(new Error('broker'));
     await expect(service.reprocessJob('u1', 'cid', 'j1')).rejects.toThrow(BadGatewayException);
 

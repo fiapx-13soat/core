@@ -29,5 +29,26 @@ describe('CacheService', () => {
     expect(set).toHaveBeenCalledWith('k', 'v', 'EX', 10);
     expect(quit).toHaveBeenCalled();
   });
+
+  it('invalidateOwnerJobs varre por SCAN e deleta as chaves do dono (E1)', async () => {
+    // SCAN em duas páginas: cursor 5 depois 0
+    const scan = jest
+      .fn()
+      .mockResolvedValueOnce(['5', ['jobs:u1:a', 'jobs:u1:b']])
+      .mockResolvedValueOnce(['0', ['jobs:u1:c']]);
+    const del = jest.fn();
+    (globalThis as any).__redisFactory.mockImplementation(() => ({ scan, del, quit: jest.fn() }));
+    const service = new CacheService({ get: () => 'redis://localhost:6379' } as any);
+
+    await service.invalidateOwnerJobs('u1');
+
+    expect(scan).toHaveBeenCalledWith('0', 'MATCH', 'jobs:u1:*', 'COUNT', 100);
+    expect(del).toHaveBeenCalledWith('jobs:u1:a', 'jobs:u1:b', 'jobs:u1:c');
+  });
+
+  it('invalidateOwnerJobs sem redis é no-op', async () => {
+    const service = new CacheService({ get: () => '' } as any);
+    await expect(service.invalidateOwnerJobs('u1')).resolves.toBeUndefined();
+  });
 });
 

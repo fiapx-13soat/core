@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConsumeMessage } from 'amqplib';
 import { RabbitMQService } from '../infra/rabbitmq.service';
 import { DatabaseService } from '../infra/database.service';
+import { CacheService } from '../infra/cache.service';
 import { JobStatus, allowedFrom } from '../domain/job-status';
 import { jobsCompletedTotal, jobsFailedTotal } from '../infra/metrics';
 import { runWithCorrelation } from '../common/correlation-context';
@@ -29,7 +30,8 @@ export class ResultsConsumerService implements OnModuleInit {
 
   constructor(
     private readonly rabbit: RabbitMQService,
-    private readonly db: DatabaseService
+    private readonly db: DatabaseService,
+    private readonly cache: CacheService
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -128,8 +130,20 @@ export class ResultsConsumerService implements OnModuleInit {
       );
       return;
     }
+    // status mudou: derruba o cache da lista do dono para não mostrar estado defasado
+    await this.invalidateOwnerCache(jobId);
     // conta o estado terminal só quando a transição de fato aconteceu (não em replay/duplicata)
     if (to === JobStatus.COMPLETED) jobsCompletedTotal.inc();
     else if (to === JobStatus.FAILED) jobsFailedTotal.inc();
+  }
+
+  /** Best-effort: descobre o dono do job e invalida o cache da lista dele. Nunca quebra o consumo. */
+  private async invalidateOwnerCache(jobId: string): Promise<void> {
+    try {
+      const job = await this.db.getJobByIdAnyOwner(jobId);
+      if (job) await this.cache.invalidateOwnerJobs(job.owner_id);
+    } catch (error) {
+      this.logger.warn(`falha ao invalidar cache do job ${jobId}: ${(error as Error).message}`);
+    }
   }
 }
