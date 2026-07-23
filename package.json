@@ -11,7 +11,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
-    "format": "prettier --write 'src/**/*.ts'"
+    "format": "prettier --write 'src/**/*.ts'",
+    "test:int": "TEST_INTEGRATION=1 jest --runInBand"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
@@ -39,6 +40,9 @@
     "@nestjs/cli": "^10.4.5",
     "@nestjs/schematics": "^10.1.4",
     "@nestjs/testing": "^10.4.2",
+    "@testcontainers/postgresql": "^10.28.0",
+    "@testcontainers/rabbitmq": "^10.28.0",
+    "@testcontainers/redis": "^10.28.0",
     "@types/amqplib": "^0.10.5",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",

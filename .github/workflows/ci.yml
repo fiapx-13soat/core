@@ -26,6 +26,8 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      # sobe Postgres/Redis/RabbitMQ via Testcontainers; o runner já tem Docker
+      - run: npm run test:int
 
   build-and-push:
     needs: test
