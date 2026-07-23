@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConsumeMessage } from 'amqplib';
 import { RabbitMQService } from '../infra/rabbitmq.service';
 import { DatabaseService } from '../infra/database.service';
-import { JobStatus } from '../domain/job-status';
+import { JobStatus, allowedFrom } from '../domain/job-status';
 import { jobsCompletedTotal, jobsFailedTotal } from '../infra/metrics';
 import { runWithCorrelation } from '../common/correlation-context';
 
@@ -94,10 +94,10 @@ export class ResultsConsumerService implements OnModuleInit {
     const jobId = evt.payload.jobId;
     switch (evt.eventType) {
       case 'ProcessingStarted':
-        await this.transition(evt.eventType, jobId, [JobStatus.QUEUED], JobStatus.PROCESSING);
+        await this.transition(evt.eventType, jobId, JobStatus.PROCESSING);
         break;
       case 'ProcessingCompleted':
-        await this.transition(evt.eventType, jobId, [JobStatus.PROCESSING], JobStatus.COMPLETED);
+        await this.transition(evt.eventType, jobId, JobStatus.COMPLETED);
         break;
       case 'ArchiveReady':
         if (!evt.payload.archiveStorageKey) {
@@ -106,12 +106,7 @@ export class ResultsConsumerService implements OnModuleInit {
         await this.db.setArchive(jobId, evt.payload.archiveStorageKey, evt.payload.sizeBytes ?? 0);
         break;
       case 'ProcessingFailed':
-        await this.transition(
-          evt.eventType,
-          jobId,
-          [JobStatus.QUEUED, JobStatus.PROCESSING],
-          JobStatus.FAILED
-        );
+        await this.transition(evt.eventType, jobId, JobStatus.FAILED);
         break;
       default:
         break;
@@ -123,12 +118,9 @@ export class ResultsConsumerService implements OnModuleInit {
    * job cancelado ainda recebe o resultado do worker. Loga e segue: mandar para
    * retry só repetiria uma transição que nunca vai ser válida.
    */
-  private async transition(
-    eventType: string,
-    jobId: string,
-    from: JobStatus[],
-    to: JobStatus
-  ): Promise<void> {
+  private async transition(eventType: string, jobId: string, to: JobStatus): Promise<void> {
+    // origem derivada da máquina de estados (domínio), não hardcoded aqui
+    const from = allowedFrom(to);
     const applied = await this.db.setJobStatus(jobId, null, from, to);
     if (!applied) {
       this.logger.warn(

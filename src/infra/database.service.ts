@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, QueryResult, QueryResultRow } from 'pg';
 import { JobStatus } from '../domain/job-status';
+import { UserRow, JobRow, JobListRow, VideoRow } from './rows';
 
 export interface JobListFilters {
   ownerId: string;
@@ -41,13 +42,13 @@ export class DatabaseService implements OnModuleDestroy {
     );
   }
 
-  async findUserByEmail(email: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from users where email = $1', [email]);
+  async findUserByEmail(email: string): Promise<UserRow | null> {
+    const { rows } = await this.query<UserRow>('select * from users where email = $1', [email]);
     return rows[0] ?? null;
   }
 
-  async findUserById(id: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from users where id = $1', [id]);
+  async findUserById(id: string): Promise<UserRow | null> {
+    const { rows } = await this.query<UserRow>('select * from users where id = $1', [id]);
     return rows[0] ?? null;
   }
 
@@ -163,17 +164,17 @@ export class DatabaseService implements OnModuleDestroy {
     );
   }
 
-  async getJobById(jobId: string, ownerId: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from processing_jobs where id = $1 and owner_id = $2', [jobId, ownerId]);
+  async getJobById(jobId: string, ownerId: string): Promise<JobRow | null> {
+    const { rows } = await this.query<JobRow>('select * from processing_jobs where id = $1 and owner_id = $2', [jobId, ownerId]);
     return rows[0] ?? null;
   }
 
-  async getJobByIdAnyOwner(jobId: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from processing_jobs where id = $1', [jobId]);
+  async getJobByIdAnyOwner(jobId: string): Promise<JobRow | null> {
+    const { rows } = await this.query<JobRow>('select * from processing_jobs where id = $1', [jobId]);
     return rows[0] ?? null;
   }
 
-  async listJobs(filters: JobListFilters): Promise<any[]> {
+  async listJobs(filters: JobListFilters): Promise<JobListRow[]> {
     const values: unknown[] = [filters.ownerId];
     let idx = 2;
     let sql =
@@ -196,12 +197,12 @@ export class DatabaseService implements OnModuleDestroy {
     }
     sql += ` order by created_at desc limit $${idx}`;
     values.push(filters.limit);
-    const { rows } = await this.query<any>(sql, values);
+    const { rows } = await this.query<JobListRow>(sql, values);
     return rows;
   }
 
-  async getVideoById(videoId: string, ownerId: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from videos where id = $1 and owner_id = $2', [videoId, ownerId]);
+  async getVideoById(videoId: string, ownerId: string): Promise<VideoRow | null> {
+    const { rows } = await this.query<VideoRow>('select * from videos where id = $1 and owner_id = $2', [videoId, ownerId]);
     return rows[0] ?? null;
   }
 

@@ -2,7 +2,7 @@ import { BadGatewayException, BadRequestException, ConflictException, GoneExcept
 import { ConfigService } from '@nestjs/config';
 import { CacheService } from '../infra/cache.service';
 import { JobsService } from './jobs.service';
-import { JobStatus } from '../domain/job-status';
+import { JobStatus, allowedFrom } from '../domain/job-status';
 
 describe('JobsService', () => {
   const db: any = {
@@ -68,11 +68,11 @@ describe('JobsService', () => {
     rabbit.publishConfirmed.mockRejectedValue(new Error('broker'));
     const file = { size: 1, originalname: 'video.mp4', buffer: Buffer.from('ftypaaaa'), mimetype: 'video/mp4' } as any;
     await expect(service.uploadVideo('u1', 'cid', file)).rejects.toThrow(BadGatewayException);
-    // não pode ficar QUEUED sem ninguém para consumir
+    // não pode ficar QUEUED sem ninguém para consumir; origem vem da máquina de estados
     expect(db.setJobStatus).toHaveBeenLastCalledWith(
       expect.any(String),
       'u1',
-      [JobStatus.QUEUED],
+      allowedFrom(JobStatus.FAILED),
       JobStatus.FAILED
     );
   });

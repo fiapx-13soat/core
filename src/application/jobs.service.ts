@@ -14,7 +14,8 @@ import { CacheService } from '../infra/cache.service';
 import { DatabaseService } from '../infra/database.service';
 import { EventEnvelope, RabbitMQService } from '../infra/rabbitmq.service';
 import { S3Service } from '../infra/s3.service';
-import { JobStatus, isFinalStatus } from '../domain/job-status';
+import { JobStatus, isFinalStatus, allowedFrom } from '../domain/job-status';
+import { JobRow, JobListRow } from '../infra/rows';
 import { jobsCreatedTotal } from '../infra/metrics';
 
 export interface JobListItem {
@@ -101,12 +102,12 @@ export class JobsService {
     // QUEUED antes de publicar: o worker pode consumir e publicar job.started
     // antes deste update, e a transição QUEUED -> PROCESSING não encontraria o
     // job em QUEUED — ele ficaria preso em RECEIVED para sempre.
-    await this.db.setJobStatus(jobId, userId, [JobStatus.RECEIVED], JobStatus.QUEUED);
+    await this.db.setJobStatus(jobId, userId, allowedFrom(JobStatus.QUEUED), JobStatus.QUEUED);
 
     try {
       await this.rabbit.publishConfirmed('video.processing', 'job.requested', event);
     } catch {
-      await this.db.setJobStatus(jobId, userId, [JobStatus.QUEUED], JobStatus.FAILED);
+      await this.db.setJobStatus(jobId, userId, allowedFrom(JobStatus.FAILED), JobStatus.FAILED);
       throw new BadGatewayException('processing broker unavailable');
     }
 
@@ -144,7 +145,7 @@ export class JobsService {
   // DTO estável da listagem: camelCase, sem vazar coluna crua do banco. `downloadAvailable`
   // sinaliza que o sistema produziu um ZIP (COMPLETED + archive gravado) — o link em si
   // sai do GET /jobs/{id}/download-link, que faz a checagem real de existência/expiração.
-  private toJobListItem(row: { id: string; video_id: string; status: JobStatus; archive_storage_key: string | null; created_at: string }): JobListItem {
+  private toJobListItem(row: JobListRow): JobListItem {
     return {
       id: row.id,
       videoId: row.video_id,
@@ -159,7 +160,7 @@ export class JobsService {
   }
 
   /** Linha crua do banco, para uso interno (cancel/reprocess/download). Não vaza para HTTP. */
-  private async getJobRow(userId: string, jobId: string): Promise<any> {
+  private async getJobRow(userId: string, jobId: string): Promise<JobRow> {
     const job = await this.db.getJobById(jobId, userId);
     if (!job) {
       throw new NotFoundException('job not found');
@@ -173,16 +174,7 @@ export class JobsService {
 
   // DTO de detalhe: camelCase, sem vazar owner_id nem a storage key interna. downloadAvailable
   // segue a mesma regra da listagem; o link em si sai do /download-link.
-  private toJobDetail(row: {
-    id: string;
-    video_id: string;
-    status: JobStatus;
-    archive_storage_key: string | null;
-    error_code: string | null;
-    error_message: string | null;
-    created_at: string;
-    updated_at: string;
-  }): JobDetail {
+  private toJobDetail(row: JobRow): JobDetail {
     return {
       id: row.id,
       videoId: row.video_id,
@@ -201,7 +193,7 @@ export class JobsService {
       throw new ConflictException('finalized jobs cannot be cancelled');
     }
 
-    const ok = await this.db.setJobStatus(jobId, userId, [JobStatus.RECEIVED, JobStatus.QUEUED, JobStatus.PROCESSING], JobStatus.CANCELLED);
+    const ok = await this.db.setJobStatus(jobId, userId, allowedFrom(JobStatus.CANCELLED), JobStatus.CANCELLED);
     if (!ok) {
       throw new ConflictException('unable to cancel');
     }
@@ -237,7 +229,7 @@ export class JobsService {
       status: JobStatus.RECEIVED
     });
 
-    await this.db.setJobStatus(newJobId, userId, [JobStatus.RECEIVED], JobStatus.QUEUED);
+    await this.db.setJobStatus(newJobId, userId, allowedFrom(JobStatus.QUEUED), JobStatus.QUEUED);
 
     try {
       await this.rabbit.publishConfirmed('video.processing', 'job.requested', {
@@ -253,7 +245,7 @@ export class JobsService {
         }
       });
     } catch {
-      await this.db.setJobStatus(newJobId, userId, [JobStatus.QUEUED], JobStatus.FAILED);
+      await this.db.setJobStatus(newJobId, userId, allowedFrom(JobStatus.FAILED), JobStatus.FAILED);
       throw new BadGatewayException('processing broker unavailable');
     }
 
