@@ -3,6 +3,7 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import envConfig from './config/env';
+import { validateEnv } from './config/env.validation';
 import { CorrelationMiddleware } from './common/correlation.middleware';
 import { MetricsInterceptor } from './common/metrics.interceptor';
 import { UploadRateLimitGuard } from './common/upload-rate-limit.guard';
@@ -31,7 +32,7 @@ export function jwtOptionsFactory(config: ConfigService) {
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [envConfig] }),
+    ConfigModule.forRoot({ isGlobal: true, load: [envConfig], validate: validateEnv }),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: jwtOptionsFactory

@@ -2,6 +2,8 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from '../application/auth.service';
 import { CorrelationId } from '../common/current-user.decorator';
 import { DatabaseService } from '../infra/database.service';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Controller('/api/v1/auth')
 export class AuthController {
@@ -12,7 +14,7 @@ export class AuthController {
 
   @Post('/login')
   async login(
-    @Body() body: { email: string; password: string },
+    @Body() body: LoginDto,
     @CorrelationId() correlationId: string
   ) {
     const result = await this.auth.login(body.email, body.password);
@@ -26,7 +28,7 @@ export class AuthController {
   }
 
   @Post('/refresh')
-  refresh(@Body() body: { refreshToken: string }) {
+  refresh(@Body() body: RefreshTokenDto) {
     return this.auth.refresh(body.refreshToken);
   }
 }

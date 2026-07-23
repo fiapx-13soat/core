@@ -3,6 +3,8 @@ import { UsersService } from '../application/users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUserId, CorrelationId } from '../common/current-user.decorator';
 import { DatabaseService } from '../infra/database.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('/api/v1')
 export class UsersController {
@@ -12,7 +14,7 @@ export class UsersController {
   ) {}
 
   @Post('/users')
-  create(@Body() body: { email: string; name: string; password: string }) {
+  create(@Body() body: CreateUserDto) {
     return this.users.createUser(body);
   }
 
@@ -28,7 +30,7 @@ export class UsersController {
   async patchOwn(
     @CurrentUserId() userId: string,
     @Param('id') id: string,
-    @Body() body: { name: string }
+    @Body() body: UpdateUserDto
   ): Promise<void> {
     await this.users.patchOwnUser(userId, id, body.name);
   }
