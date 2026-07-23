@@ -32,7 +32,7 @@ export class ResultsConsumerService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await this.rabbit.consume(RESULTS_QUEUE, async (message) => {
-      const attempt = Number(message.properties.headers?.['x-retry'] ?? 0);
+      const attempt = Number(message.properties.headers?.['x-retry-count'] ?? 0);
       try {
         const data = JSON.parse(message.content.toString()) as ResultEvent;
         await this.applyResultEvent(data);
@@ -61,7 +61,7 @@ export class ResultsConsumerService implements OnModuleInit {
     attempt: number,
     error: Error
   ): Promise<void> {
-    const headers = { ...message.properties.headers, 'x-retry': attempt + 1 };
+    const headers = { ...message.properties.headers, 'x-retry-count': attempt + 1 };
 
     if (attempt >= RETRY_DELAYS_MS.length) {
       this.logger.error(`evento para a DLQ após ${attempt} tentativas: ${error.message}`);
