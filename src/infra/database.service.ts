@@ -176,7 +176,8 @@ export class DatabaseService implements OnModuleDestroy {
   async listJobs(filters: JobListFilters): Promise<any[]> {
     const values: unknown[] = [filters.ownerId];
     let idx = 2;
-    let sql = 'select id, video_id, status, created_at from processing_jobs where owner_id = $1';
+    let sql =
+      'select id, video_id, status, archive_storage_key, created_at from processing_jobs where owner_id = $1';
     if (filters.status) {
       sql += ` and status = $${idx++}`;
       values.push(filters.status);

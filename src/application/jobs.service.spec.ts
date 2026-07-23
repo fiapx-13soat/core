@@ -78,14 +78,40 @@ describe('JobsService', () => {
   });
 
   it('lists jobs with and without cache', async () => {
-    cache.get.mockResolvedValueOnce(JSON.stringify([{ created_at: '1' }])).mockResolvedValueOnce(null);
-    db.listJobs.mockResolvedValue([{ created_at: '2' }]);
+    // cache guarda o DTO já mapeado (camelCase); fresh vem da linha crua do banco
+    cache.get
+      .mockResolvedValueOnce(JSON.stringify([{ id: 'j0', videoId: 'v0', status: 'QUEUED', createdAt: '1', downloadAvailable: false }]))
+      .mockResolvedValueOnce(null);
+    db.listJobs.mockResolvedValue([
+      { id: 'j1', video_id: 'v1', status: 'PROCESSING', archive_storage_key: null, created_at: '2' }
+    ]);
 
     const cached = await service.listJobs('u1', {});
     const fresh = await service.listJobs('u1', {});
 
     expect(cached.items).toHaveLength(1);
     expect(fresh.items).toHaveLength(1);
+    // DTO estável, camelCase, sem coluna crua
+    expect(fresh.items[0]).toEqual({
+      id: 'j1',
+      videoId: 'v1',
+      status: 'PROCESSING',
+      createdAt: '2',
+      downloadAvailable: false
+    });
+  });
+
+  it('marca downloadAvailable só para COMPLETED com archive', async () => {
+    cache.get.mockResolvedValue(null);
+    db.listJobs.mockResolvedValue([
+      { id: 'a', video_id: 'v', status: 'COMPLETED', archive_storage_key: 'archives/a.zip', created_at: '3' },
+      { id: 'b', video_id: 'v', status: 'COMPLETED', archive_storage_key: null, created_at: '2' },
+      { id: 'c', video_id: 'v', status: 'PROCESSING', archive_storage_key: 'archives/c.zip', created_at: '1' }
+    ]);
+
+    const { items } = await service.listJobs('u1', {});
+
+    expect(items.map((i) => i.downloadAvailable)).toEqual([true, false, false]);
   });
 
   it('gets job and handles cancel/reprocess/download paths', async () => {

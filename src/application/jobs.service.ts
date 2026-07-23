@@ -17,6 +17,14 @@ import { S3Service } from '../infra/s3.service';
 import { JobStatus, isFinalStatus } from '../domain/job-status';
 import { jobsCreatedTotal } from '../infra/metrics';
 
+export interface JobListItem {
+  id: string;
+  videoId: string;
+  status: JobStatus;
+  createdAt: string;
+  downloadAvailable: boolean;
+}
+
 @Injectable()
 export class JobsService {
   constructor(
@@ -102,7 +110,7 @@ export class JobsService {
     return { jobId, status: JobStatus.QUEUED };
   }
 
-  async listJobs(userId: string, query: { status?: string; from?: string; to?: string; cursor?: string; limit?: string }): Promise<{ items: any[]; nextCursor: string | null }> {
+  async listJobs(userId: string, query: { status?: string; from?: string; to?: string; cursor?: string; limit?: string }): Promise<{ items: JobListItem[]; nextCursor: string | null }> {
     const limit = Math.min(Number(query.limit ?? 20), 100);
     const from = query.from ? new Date(query.from) : undefined;
     const to = query.to ? new Date(query.to) : undefined;
@@ -111,17 +119,32 @@ export class JobsService {
     const cacheKey = `jobs:${userId}:${query.status ?? ''}:${query.from ?? ''}:${query.to ?? ''}:${query.cursor ?? ''}:${limit}`;
     const cached = await this.cache.get(cacheKey);
     if (cached) {
-      const items = JSON.parse(cached);
-      return { items, nextCursor: items.length === limit ? items[items.length - 1].created_at : null };
+      const items = JSON.parse(cached) as JobListItem[];
+      return { items, nextCursor: this.nextCursor(items, limit) };
     }
 
-    const items = await this.db.listJobs({ ownerId: userId, status: query.status, from, to, cursor, limit });
+    const rows = await this.db.listJobs({ ownerId: userId, status: query.status, from, to, cursor, limit });
+    const items = rows.map((r) => this.toJobListItem(r));
     await this.cache.setEx(cacheKey, 10, JSON.stringify(items));
 
+    return { items, nextCursor: this.nextCursor(items, limit) };
+  }
+
+  // DTO estável da listagem: camelCase, sem vazar coluna crua do banco. `downloadAvailable`
+  // sinaliza que o sistema produziu um ZIP (COMPLETED + archive gravado) — o link em si
+  // sai do GET /jobs/{id}/download-link, que faz a checagem real de existência/expiração.
+  private toJobListItem(row: { id: string; video_id: string; status: JobStatus; archive_storage_key: string | null; created_at: string }): JobListItem {
     return {
-      items,
-      nextCursor: items.length === limit ? items[items.length - 1].created_at : null
+      id: row.id,
+      videoId: row.video_id,
+      status: row.status,
+      createdAt: row.created_at,
+      downloadAvailable: row.status === JobStatus.COMPLETED && !!row.archive_storage_key
     };
+  }
+
+  private nextCursor(items: JobListItem[], limit: number): string | null {
+    return items.length === limit ? items[items.length - 1].createdAt : null;
   }
 
   async getJob(userId: string, jobId: string): Promise<any> {
