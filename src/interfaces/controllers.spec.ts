@@ -47,16 +47,27 @@ describe('controllers', () => {
     const metrics = new MetricsController();
     const videos = new VideosController(jobsSvc);
 
-    await jobs.list('u1', {} as any);
+    await jobs.list('u1', { status: 'QUEUED' } as any);
     await jobs.get('u1', 'j1');
     await jobs.cancel('u1', 'cid', 'j1');
     await jobs.reprocess('u1', 'cid', 'j1');
     await jobs.downloadLink('u1', 'j1');
     await internal.getNotificationInfo('j1');
-    await health.health();
-    await expect(health.ready()).resolves.toBeDefined();
-    await metrics.metrics();
-    expect(videos).toBeDefined();
+
+    // O que importa aqui é o repasse: cada rota tem que levar o userId do token
+    // (e não o id da URL) para o service, senão um usuário lê o job de outro.
+    expect(jobsSvc.listJobs).toHaveBeenCalledWith('u1', { status: 'QUEUED' });
+    expect(jobsSvc.getJob).toHaveBeenCalledWith('u1', 'j1');
+    expect(jobsSvc.cancelJob).toHaveBeenCalledWith('u1', 'cid', 'j1');
+    expect(jobsSvc.reprocessJob).toHaveBeenCalledWith('u1', 'cid', 'j1');
+    expect(jobsSvc.getDownloadLink).toHaveBeenCalledWith('u1', 'j1');
+    // a rota interna é a única sem dono: quem chama é o notification, não o usuário
+    expect(jobsSvc.getNotificationInfo).toHaveBeenCalledWith('j1');
+
+    expect(health.health()).toEqual({ status: 'ok' });
+    await expect(health.ready()).resolves.toEqual({ status: 'ready' });
+    await expect(metrics.metrics()).resolves.toEqual(expect.any(String));
+    expect(videos).toBeInstanceOf(VideosController);
   });
 });
 

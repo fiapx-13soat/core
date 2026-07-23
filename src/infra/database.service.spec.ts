@@ -42,6 +42,40 @@ describe('DatabaseService', () => {
     expect(mockPool.query).toHaveBeenCalled();
   });
 
+  // setJobStatus é a guarda da máquina de estados: o consumer de resultados depende
+  // do filtro por status na cláusula WHERE e do booleano de retorno para saber se a
+  // transição valeu. Sem estas asserções, o teste acima passaria com a query errada.
+  describe('setJobStatus', () => {
+    it('filtra por dono e por status de origem, nessa ordem de parâmetros', async () => {
+      mockPool.query.mockResolvedValue({ rowCount: 1 });
+
+      await service.setJobStatus('j1', 'u1', [JobStatus.RECEIVED], JobStatus.QUEUED);
+
+      const [sql, params] = mockPool.query.mock.calls[0];
+      expect(sql).toContain('update processing_jobs set status = $1');
+      expect(sql).toContain('and owner_id = $3');
+      expect(sql).toContain('and status = any($4)');
+      expect(params).toEqual([JobStatus.QUEUED, 'j1', 'u1', [JobStatus.RECEIVED]]);
+    });
+
+    it('omite o filtro de dono quando ownerId é null (consumer de eventos)', async () => {
+      mockPool.query.mockResolvedValue({ rowCount: 1 });
+
+      await service.setJobStatus('j1', null, [JobStatus.PROCESSING], JobStatus.COMPLETED);
+
+      const [sql, params] = mockPool.query.mock.calls[0];
+      expect(sql).not.toContain('owner_id');
+      expect(params).toEqual([JobStatus.COMPLETED, 'j1', [JobStatus.PROCESSING]]);
+    });
+
+    it('devolve false quando nenhuma linha casa — transição inválida', async () => {
+      mockPool.query.mockResolvedValue({ rowCount: 0 });
+      await expect(
+        service.setJobStatus('j1', null, [JobStatus.PROCESSING], JobStatus.COMPLETED)
+      ).resolves.toBe(false);
+    });
+  });
+
   it('rotates refresh token and reports uniqueness', async () => {
     const client = { query: jest.fn(), release: jest.fn() };
     client.query.mockResolvedValueOnce({}).mockResolvedValueOnce({ rowCount: 1 }).mockResolvedValueOnce({});
