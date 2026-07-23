@@ -1,5 +1,9 @@
 import { ResultsConsumerService } from './results-consumer.service';
 import { JobStatus } from '../domain/job-status';
+import { jobsCompletedTotal, jobsFailedTotal } from '../infra/metrics';
+
+const counterValue = async (c: { get(): Promise<{ values: Array<{ value: number }> }> }): Promise<number> =>
+  (await c.get()).values[0]?.value ?? 0;
 
 describe('ResultsConsumerService', () => {
   const rabbit: any = {
@@ -20,6 +24,24 @@ describe('ResultsConsumerService', () => {
     rabbit.consume.mockResolvedValue(undefined);
     await service.onModuleInit();
     expect(rabbit.consume).toHaveBeenCalledWith('q.core.results', expect.any(Function));
+  });
+
+  it('conta jobs_completed/failed só quando a transição terminal se aplica', async () => {
+    const beforeC = await counterValue(jobsCompletedTotal);
+    const beforeF = await counterValue(jobsFailedTotal);
+    const msg = (c: unknown) => ({ content: Buffer.from(JSON.stringify(c)), properties: { headers: {} } });
+
+    // COMPLETED aplica (transição válida), FAILED não (setJobStatus=false)
+    db.setJobStatus.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    rabbit.consume.mockImplementation(async (_q: string, onMessage: any) => {
+      await onMessage(msg({ eventType: 'ProcessingCompleted', payload: { jobId: 'j1' } }));
+      await onMessage(msg({ eventType: 'ProcessingFailed', payload: { jobId: 'j2' } }));
+    });
+
+    await service.onModuleInit();
+
+    expect(await counterValue(jobsCompletedTotal)).toBe(beforeC + 1);
+    expect(await counterValue(jobsFailedTotal)).toBe(beforeF); // não contou a transição ignorada
   });
 
   it('applies events and acks', async () => {

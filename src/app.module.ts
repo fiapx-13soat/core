@@ -1,8 +1,10 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import envConfig from './config/env';
 import { CorrelationMiddleware } from './common/correlation.middleware';
+import { MetricsInterceptor } from './common/metrics.interceptor';
 import { UploadRateLimitGuard } from './common/upload-rate-limit.guard';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { DatabaseService } from './infra/database.service';
@@ -45,6 +47,7 @@ export function jwtOptionsFactory(config: ConfigService) {
     InternalController
   ],
   providers: [
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
     UploadRateLimitGuard,
     JwtStrategy,
     DatabaseService,

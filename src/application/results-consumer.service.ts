@@ -3,6 +3,7 @@ import { ConsumeMessage } from 'amqplib';
 import { RabbitMQService } from '../infra/rabbitmq.service';
 import { DatabaseService } from '../infra/database.service';
 import { JobStatus } from '../domain/job-status';
+import { jobsCompletedTotal, jobsFailedTotal } from '../infra/metrics';
 
 const RESULTS_QUEUE = 'q.core.results';
 const RETRY_QUEUE = 'q.core.results.retry';
@@ -120,6 +121,10 @@ export class ResultsConsumerService implements OnModuleInit {
       this.logger.warn(
         `${eventType}: transição para ${to} ignorada — job ${jobId} não está em ${from.join('|')}`
       );
+      return;
     }
+    // conta o estado terminal só quando a transição de fato aconteceu (não em replay/duplicata)
+    if (to === JobStatus.COMPLETED) jobsCompletedTotal.inc();
+    else if (to === JobStatus.FAILED) jobsFailedTotal.inc();
   }
 }

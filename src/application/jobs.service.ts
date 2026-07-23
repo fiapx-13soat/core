@@ -15,6 +15,7 @@ import { DatabaseService } from '../infra/database.service';
 import { EventEnvelope, RabbitMQService } from '../infra/rabbitmq.service';
 import { S3Service } from '../infra/s3.service';
 import { JobStatus, isFinalStatus } from '../domain/job-status';
+import { jobsCreatedTotal } from '../infra/metrics';
 
 @Injectable()
 export class JobsService {
@@ -97,6 +98,7 @@ export class JobsService {
       metadata: { jobId, videoId }
     });
 
+    jobsCreatedTotal.inc();
     return { jobId, status: JobStatus.QUEUED };
   }
 
