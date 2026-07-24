@@ -4,13 +4,10 @@ import { getCorrelationId } from './correlation-context';
 type Level = 'log' | 'error' | 'warn' | 'debug' | 'verbose';
 
 /**
- * Logger JSON estruturado (CA-C12 / §4). Emite uma linha JSON por evento, com o
- * `correlationId` do escopo corrente (via AsyncLocalStorage) — vale tanto para logs de
- * requisição HTTP quanto de consumo de mensagem.
- *
- * Registrado via `app.useLogger`, então todo `new Logger(ctx)` do Nest passa por aqui.
- * Aceita mensagem string ou objeto (`logger.warn({ message, jobId, ... })`), fundindo os
- * campos do objeto na linha — mesmo espírito do createStructuredLog do fiapx-notification.
+ * Logger JSON estruturado. Cada log vira uma linha JSON com o `correlationId` do escopo corrente
+ * (via AsyncLocalStorage), tanto em requisição HTTP quanto no consumo de mensagem. Registrado via
+ * `app.useLogger`, então todo `new Logger(ctx)` do Nest passa por aqui. Aceita string ou objeto
+ * (`logger.warn({ message, jobId })`), fundindo os campos do objeto na linha.
  */
 export class StructuredLogger implements LoggerService {
   log(message: unknown, ...params: unknown[]): void {

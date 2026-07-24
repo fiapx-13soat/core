@@ -53,11 +53,8 @@ export class RabbitMQService implements OnModuleDestroy {
     await this.confirmChannel!.waitForConfirms();
   }
 
-  /**
-   * Publica direto numa fila pelo default exchange. Usado para republicação
-   * explícita (retry com backoff e DLQ), onde o destino é a fila e não um
-   * roteamento por routing key.
-   */
+  // Publica direto numa fila pelo default exchange (retry/DLQ, onde o destino é a fila, não uma
+  // routing key).
   async publishToQueue(
     queue: string,
     content: Buffer,

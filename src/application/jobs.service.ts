@@ -186,8 +186,6 @@ export class JobsService {
     return this.toJobDetail(await this.getJobRow(userId, jobId));
   }
 
-  // DTO de detalhe: camelCase, sem vazar owner_id nem a storage key interna. downloadAvailable
-  // segue a mesma regra da listagem; o link em si sai do /download-link.
   private toJobDetail(row: JobRow): JobDetail {
     return {
       id: row.id,

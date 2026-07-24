@@ -11,7 +11,6 @@ const RESULTS_QUEUE = 'q.core.results';
 const RETRY_QUEUE = 'q.core.results.retry';
 const DLQ = 'q.core.results.dlq';
 
-/** Backoff por tentativa; o nº de elementos é o nº de retentativas antes da DLQ. */
 const RETRY_DELAYS_MS = [1000, 5000, 30000, 120000];
 
 interface ResultEvent {
@@ -50,7 +49,6 @@ export class ResultsConsumerService implements OnModuleInit {
     });
   }
 
-  /** Best-effort: extrai o correlationId do envelope; undefined se a mensagem for malformada. */
   private correlationIdOf(message: ConsumeMessage): string | undefined {
     try {
       return (JSON.parse(message.content.toString()) as ResultEvent).correlationId;
@@ -60,17 +58,10 @@ export class ResultsConsumerService implements OnModuleInit {
   }
 
   /**
-   * Republicação explícita em vez de nack(requeue): o nack devolve a mensagem
-   * original ao broker, então a contagem de tentativas gravada no header se
-   * perderia e uma mensagem venenosa giraria para sempre. Mesmo padrão do
-   * JobFailureHandler do fiapx-workers.
-   *
-   * O backoff é o `expiration` da mensagem na fila de retry, que faz
-   * dead-letter de volta para a fila principal ao expirar — sem bloquear o
-   * consumo enquanto espera.
-   *
-   * Se a republicação falhar (broker fora), o erro sobe e o wrapper do
-   * RabbitMQService faz nack com requeue, preservando a mensagem.
+   * Republica na fila de retry em vez de nack(requeue): o nack devolve a mensagem original, então
+   * a contagem de tentativas no header se perderia e uma mensagem venenosa giraria para sempre. O
+   * backoff é o `expiration` da mensagem na retry queue, que faz dead-letter de volta à principal
+   * ao expirar. Se a republicação falhar, o erro sobe e o wrapper faz nack com requeue.
    */
   private async republishOnFailure(
     message: ConsumeMessage,
@@ -115,13 +106,9 @@ export class ResultsConsumerService implements OnModuleInit {
     }
   }
 
-  /**
-   * Transição inválida não é falha de infra — acontece, por exemplo, quando um
-   * job cancelado ainda recebe o resultado do worker. Loga e segue: mandar para
-   * retry só repetiria uma transição que nunca vai ser válida.
-   */
+  // Transição inválida não é falha de infra (ex.: job cancelado que ainda recebe o resultado do
+  // worker): loga e segue — mandar para retry só repetiria uma transição que nunca será válida.
   private async transition(eventType: string, jobId: string, to: JobStatus): Promise<void> {
-    // origem derivada da máquina de estados (domínio), não hardcoded aqui
     const from = allowedFrom(to);
     const applied = await this.db.setJobStatus(jobId, null, from, to);
     if (!applied) {
@@ -130,14 +117,13 @@ export class ResultsConsumerService implements OnModuleInit {
       );
       return;
     }
-    // status mudou: derruba o cache da lista do dono para não mostrar estado defasado
     await this.invalidateOwnerCache(jobId);
-    // conta o estado terminal só quando a transição de fato aconteceu (não em replay/duplicata)
+    // conta o estado terminal uma vez só: em replay/duplicata a transição não se aplica
     if (to === JobStatus.COMPLETED) jobsCompletedTotal.inc();
     else if (to === JobStatus.FAILED) jobsFailedTotal.inc();
   }
 
-  /** Best-effort: descobre o dono do job e invalida o cache da lista dele. Nunca quebra o consumo. */
+  // best-effort: uma falha ao invalidar o cache não pode derrubar o consumo
   private async invalidateOwnerCache(jobId: string): Promise<void> {
     try {
       const job = await this.db.getJobByIdAnyOwner(jobId);
