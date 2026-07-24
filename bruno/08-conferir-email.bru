@@ -1,0 +1,25 @@
+meta {
+  name: 08 Conferir e-mail (Mailpit)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{mailpitUrl}}/api/v1/search?query={{email}}
+  auth: none
+}
+
+params:query {
+  query: {{email}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.messages_count: gte 1
+}
+
+docs {
+  O notification manda o e-mail para o Mailpit (a "caixa de saída" da bancada). Aqui consultamos a
+  API do Mailpit pelo e-mail da conta criada no passo 01. A UI está em http://localhost:8025.
+  Deve haver 1 mensagem: 'FIAP X — Seu video "sample.mp4" foi processado com sucesso'.
+}

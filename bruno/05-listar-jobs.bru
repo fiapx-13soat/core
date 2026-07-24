@@ -1,0 +1,27 @@
+meta {
+  name: 05 Listar jobs
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/jobs?limit=20
+  auth: bearer
+}
+
+params:query {
+  limit: 20
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Lista paginada por cursor (filtros opcionais: status, from, to, cursor). Cada item traz
+  `downloadAvailable`, então dá para montar a tela de "meus vídeos" numa chamada só.
+}

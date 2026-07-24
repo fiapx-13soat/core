@@ -1,0 +1,31 @@
+meta {
+  name: Bad path - e-mail inválido (400)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "nao-e-email",
+    "name": "X",
+    "password": "{{password}}"
+  }
+}
+
+assert {
+  res.status: eq 400
+}
+
+docs {
+  Validacao de entrada (class-validator): e-mail malformado -> 400, nenhuma conta criada.
+}

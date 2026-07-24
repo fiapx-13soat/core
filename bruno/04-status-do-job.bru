@@ -1,0 +1,24 @@
+meta {
+  name: 04 Status do job
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/jobs/{{jobId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Reexecute até `status` == COMPLETED (o worker leva ~2-5s: QUEUED → PROCESSING → COMPLETED).
+  Quando conclui, `downloadAvailable` vira true e o passo 06 (download-link) funciona.
+  Antes disso, o download-link responde 409.
+}

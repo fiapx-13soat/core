@@ -1,0 +1,19 @@
+meta {
+  name: 07 Baixar o ZIP
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{downloadUrl}}
+  auth: none
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Baixa o ZIP direto da pre-signed URL (host reescrito para localhost:4566 pelo core, via
+  S3_PUBLIC_ENDPOINT). No Bruno, use "Save Response" para gravar o arquivo e conferir os frames.
+}

@@ -1,0 +1,18 @@
+meta {
+  name: Reprocessar job
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/jobs/{{jobId}}/reprocess
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+docs {
+  Cria um novo job a partir do mesmo vídeo. Se o vídeo original sumiu do S3, responde 410.
+}

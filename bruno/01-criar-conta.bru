@@ -1,0 +1,32 @@
+meta {
+  name: 01 Criar conta
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/users
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "name": "Bruno Tester",
+    "password": "{{password}}"
+  }
+}
+
+script:pre-request {
+  // e-mail único por execução — evita 409 ao rodar a coleção de novo
+  bru.setVar("email", `bruno+${Date.now()}@fiapx.local`);
+}
+
+assert {
+  res.status: eq 201
+}
