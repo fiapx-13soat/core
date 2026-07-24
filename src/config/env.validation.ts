@@ -36,10 +36,14 @@ class EnvironmentVariables {
 }
 
 export function validateEnv(config: Record<string, unknown>): Record<string, unknown> {
-  const validated = plainToInstance(EnvironmentVariables, config, { enableImplicitConversion: true });
+  const validated = plainToInstance(EnvironmentVariables, config, {
+    enableImplicitConversion: true,
+  });
   const errors = validateSync(validated, { skipMissingProperties: false, whitelist: false });
   if (errors.length > 0) {
-    const detail = errors.map((e) => `${e.property}: ${Object.values(e.constraints ?? {}).join(', ')}`).join('; ');
+    const detail = errors
+      .map((e) => `${e.property}: ${Object.values(e.constraints ?? {}).join(', ')}`)
+      .join('; ');
     throw new Error(`Configuração inválida — verifique as env vars: ${detail}`);
   }
   return config;

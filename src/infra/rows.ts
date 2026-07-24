@@ -46,4 +46,7 @@ export interface JobRow {
 }
 
 /** Projeção da listagem (SELECT enxuto, sem owner_id). */
-export type JobListRow = Pick<JobRow, 'id' | 'video_id' | 'status' | 'archive_storage_key' | 'created_at'>;
+export type JobListRow = Pick<
+  JobRow,
+  'id' | 'video_id' | 'status' | 'archive_storage_key' | 'created_at'
+>;

@@ -1,4 +1,9 @@
-import { correlationId, correlationIdFactory, currentUserId, currentUserIdFactory } from './current-user.decorator';
+import {
+  correlationId,
+  correlationIdFactory,
+  currentUserId,
+  currentUserIdFactory,
+} from './current-user.decorator';
 
 describe('current user decorators', () => {
   it('reads user id and correlation id from request', () => {

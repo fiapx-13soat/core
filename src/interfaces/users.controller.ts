@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from '../application/users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUserId, CorrelationId } from '../common/current-user.decorator';
@@ -10,7 +20,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersController {
   constructor(
     private readonly users: UsersService,
-    private readonly db: DatabaseService
+    private readonly db: DatabaseService,
   ) {}
 
   @Post('/users')
@@ -27,7 +37,11 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(204)
   @Patch('/users/:id')
-  async patchOwn(@CurrentUserId() userId: string, @Param('id') id: string, @Body() body: UpdateUserDto): Promise<void> {
+  async patchOwn(
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() body: UpdateUserDto,
+  ): Promise<void> {
     await this.users.patchOwnUser(userId, id, body.name);
   }
 
@@ -37,9 +51,14 @@ export class UsersController {
   async deleteOwn(
     @CurrentUserId() userId: string,
     @Param('id') id: string,
-    @CorrelationId() correlationId: string
+    @CorrelationId() correlationId: string,
   ): Promise<void> {
     await this.users.deleteOwnUser(userId, id);
-    await this.db.insertAuditLog({ ownerId: userId, action: 'delete_account', correlationId, metadata: {} });
+    await this.db.insertAuditLog({
+      ownerId: userId,
+      action: 'delete_account',
+      correlationId,
+      metadata: {},
+    });
   }
 }

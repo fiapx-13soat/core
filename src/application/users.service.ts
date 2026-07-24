@@ -30,7 +30,7 @@ export class UsersService {
 
   async getOwnUser(
     userId: string,
-    requestedId: string
+    requestedId: string,
   ): Promise<{ id: string; email: string; name: string; active: boolean }> {
     if (userId !== requestedId) {
       throw new NotFoundException('user not found');

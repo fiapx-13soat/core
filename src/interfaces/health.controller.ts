@@ -6,7 +6,7 @@ import { RabbitMQService } from '../infra/rabbitmq.service';
 export class HealthController {
   constructor(
     private readonly db: DatabaseService,
-    private readonly rabbit: RabbitMQService
+    private readonly rabbit: RabbitMQService,
   ) {}
 
   @Get('/health')
@@ -24,7 +24,10 @@ export class HealthController {
       }
       return { status: 'ready' };
     } catch (error) {
-      throw new ServiceUnavailableException({ status: 'not_ready', error: (error as Error).message });
+      throw new ServiceUnavailableException({
+        status: 'not_ready',
+        error: (error as Error).message,
+      });
     }
   }
 }

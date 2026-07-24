@@ -16,7 +16,7 @@ export class AuthService {
   constructor(
     private readonly db: DatabaseService,
     private readonly jwt: JwtService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
   ) {}
 
   async login(email: string, password: string): Promise<{ userId: string; tokens: TokenPair }> {
@@ -51,13 +51,13 @@ export class AuthService {
     const accessMinutes = this.config.get<number>('app.accessTokenTtlMinutes', 15);
     const accessToken = await this.jwt.signAsync(
       { sub: found.user_id },
-      { expiresIn: `${accessMinutes}m`, jwtid: randomBytes(8).toString('hex') }
+      { expiresIn: `${accessMinutes}m`, jwtid: randomBytes(8).toString('hex') },
     );
 
     return {
       accessToken,
       refreshToken: newRaw,
-      expiresInSec: accessMinutes * 60
+      expiresInSec: accessMinutes * 60,
     };
   }
 
@@ -67,17 +67,21 @@ export class AuthService {
 
     const accessToken = await this.jwt.signAsync(
       { sub: userId },
-      { expiresIn: `${accessMinutes}m`, jwtid: randomBytes(8).toString('hex') }
+      { expiresIn: `${accessMinutes}m`, jwtid: randomBytes(8).toString('hex') },
     );
     const refreshToken = this.newOpaqueToken();
     const refreshHash = this.hashToken(refreshToken);
 
-    await this.db.saveRefreshToken(userId, refreshHash, new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000));
+    await this.db.saveRefreshToken(
+      userId,
+      refreshHash,
+      new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000),
+    );
 
     return {
       accessToken,
       refreshToken,
-      expiresInSec: accessMinutes * 60
+      expiresInSec: accessMinutes * 60,
     };
   }
 

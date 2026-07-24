@@ -26,7 +26,7 @@ import { MetricsController } from './interfaces/metrics.controller';
 
 export function jwtOptionsFactory(config: ConfigService) {
   return {
-    secret: config.get<string>('app.jwtSecret')
+    secret: config.get<string>('app.jwtSecret'),
   };
 }
 
@@ -35,8 +35,8 @@ export function jwtOptionsFactory(config: ConfigService) {
     ConfigModule.forRoot({ isGlobal: true, load: [envConfig], validate: validateEnv }),
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: jwtOptionsFactory
-    })
+      useFactory: jwtOptionsFactory,
+    }),
   ],
   controllers: [
     HealthController,
@@ -45,7 +45,7 @@ export function jwtOptionsFactory(config: ConfigService) {
     AuthController,
     VideosController,
     JobsController,
-    InternalController
+    InternalController,
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
@@ -58,8 +58,8 @@ export function jwtOptionsFactory(config: ConfigService) {
     AuthService,
     UsersService,
     JobsService,
-    ResultsConsumerService
-  ]
+    ResultsConsumerService,
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

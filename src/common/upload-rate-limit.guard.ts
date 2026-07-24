@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface TokenBucket {
@@ -18,7 +24,9 @@ export class UploadRateLimitGuard implements CanActivate {
   }
 
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest<{ user?: { sub: string }; ip: string; res: any }>();
+    const req = context
+      .switchToHttp()
+      .getRequest<{ user?: { sub: string }; ip: string; res: any }>();
     const key = req.user?.sub ?? req.ip;
     const retryAfter = this.tryConsume(key);
     if (retryAfter !== null) {

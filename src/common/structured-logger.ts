@@ -36,14 +36,18 @@ export class StructuredLogger implements LoggerService {
   }
 
   private write(level: Level, message: unknown, params: unknown[]): void {
-    const context = typeof params[params.length - 1] === 'string' ? (params[params.length - 1] as string) : undefined;
+    const context =
+      typeof params[params.length - 1] === 'string'
+        ? (params[params.length - 1] as string)
+        : undefined;
     this.emit(level, message, context);
   }
 
   private splitError(params: unknown[]): [string | undefined, string | undefined] {
     const strings = params.filter((p) => typeof p === 'string') as string[];
     if (strings.length >= 2) return [strings[0], strings[1]]; // stack, context
-    if (strings.length === 1) return [strings[0].includes('\n') ? strings[0] : undefined, strings[0]];
+    if (strings.length === 1)
+      return [strings[0].includes('\n') ? strings[0] : undefined, strings[0]];
     return [undefined, undefined];
   }
 
@@ -52,7 +56,7 @@ export class StructuredLogger implements LoggerService {
       level,
       time: new Date().toISOString(),
       context,
-      correlationId: getCorrelationId()
+      correlationId: getCorrelationId(),
     };
 
     if (message !== null && typeof message === 'object') {

@@ -3,7 +3,7 @@ import { DatabaseService } from './database.service';
 import { JobStatus } from '../domain/job-status';
 
 jest.mock('pg', () => ({
-  Pool: jest.fn()
+  Pool: jest.fn(),
 }));
 
 describe('DatabaseService', () => {
@@ -21,7 +21,10 @@ describe('DatabaseService', () => {
 
   it('runs ready and query helpers', async () => {
     mockPool.query.mockResolvedValue({ rows: [], rowCount: 0 });
-    mockPool.connect.mockResolvedValue({ query: jest.fn().mockResolvedValue({}), release: jest.fn() });
+    mockPool.connect.mockResolvedValue({
+      query: jest.fn().mockResolvedValue({}),
+      release: jest.fn(),
+    });
     await expect(service.ready()).resolves.toBe(true);
     await service.createUser({ id: '1', email: 'e', name: 'n', passwordHash: 'h' });
     await service.findUserByEmail('e');
@@ -38,10 +41,15 @@ describe('DatabaseService', () => {
       sizeBytes: 1,
       checksum: 'c',
       storageKey: 'k',
-      jobId: 'j'
+      jobId: 'j',
     });
     await service.setJobStatus('j', '1', [JobStatus.RECEIVED], JobStatus.QUEUED);
-    await service.createJob({ jobId: 'j2', ownerId: '1', videoId: 'v', status: JobStatus.RECEIVED });
+    await service.createJob({
+      jobId: 'j2',
+      ownerId: '1',
+      videoId: 'v',
+      status: JobStatus.RECEIVED,
+    });
     await service.getJobById('j', '1');
     await service.getJobByIdAnyOwner('j');
     await service.listJobs({ ownerId: '1', limit: 10 });
@@ -79,13 +87,18 @@ describe('DatabaseService', () => {
 
     it('devolve false quando nenhuma linha casa — transição inválida', async () => {
       mockPool.query.mockResolvedValue({ rowCount: 0 });
-      await expect(service.setJobStatus('j1', null, [JobStatus.PROCESSING], JobStatus.COMPLETED)).resolves.toBe(false);
+      await expect(
+        service.setJobStatus('j1', null, [JobStatus.PROCESSING], JobStatus.COMPLETED),
+      ).resolves.toBe(false);
     });
   });
 
   it('rotates refresh token and reports uniqueness', async () => {
     const client = { query: jest.fn(), release: jest.fn() };
-    client.query.mockResolvedValueOnce({}).mockResolvedValueOnce({ rowCount: 1 }).mockResolvedValueOnce({});
+    client.query
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({});
     mockPool.connect.mockResolvedValue(client);
     await expect(service.rotateRefreshToken('old', 'new', 'u1', new Date())).resolves.toBe(true);
     expect(service.isUniqueViolation({ code: '23505' })).toBe(true);

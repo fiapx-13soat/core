@@ -5,26 +5,34 @@ import { httpRequestsTotal } from '../infra/metrics';
 const labelValue = async (labels: Record<string, string>): Promise<number> => {
   const { values } = await httpRequestsTotal.get();
   return (
-    values.find((v) => Object.entries(labels).every(([k, val]) => (v.labels as Record<string, unknown>)[k] === val))
-      ?.value ?? 0
+    values.find((v) =>
+      Object.entries(labels).every(([k, val]) => (v.labels as Record<string, unknown>)[k] === val),
+    )?.value ?? 0
   );
 };
 
 describe('MetricsInterceptor', () => {
   const interceptor = new MetricsInterceptor();
 
-  const ctx = (over: Partial<{ type: string; method: string; route: string; status: number }> = {}) =>
+  const ctx = (
+    over: Partial<{ type: string; method: string; route: string; status: number }> = {},
+  ) =>
     ({
       getType: () => over.type ?? 'http',
       switchToHttp: () => ({
-        getRequest: () => ({ method: over.method ?? 'GET', route: over.route ? { path: over.route } : undefined }),
-        getResponse: () => ({ statusCode: over.status ?? 200 })
-      })
+        getRequest: () => ({
+          method: over.method ?? 'GET',
+          route: over.route ? { path: over.route } : undefined,
+        }),
+        getResponse: () => ({ statusCode: over.status ?? 200 }),
+      }),
     }) as any;
 
   const run = (context: any) =>
     new Promise<void>((resolve) =>
-      interceptor.intercept(context, { handle: () => of('ok') } as any).subscribe({ complete: () => resolve() })
+      interceptor
+        .intercept(context, { handle: () => of('ok') } as any)
+        .subscribe({ complete: () => resolve() }),
     );
 
   it('conta a requisição com method/route/status como labels', async () => {

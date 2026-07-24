@@ -17,7 +17,7 @@ describe('RabbitMQService', () => {
     const connection: any = {
       createConfirmChannel: jest.fn().mockResolvedValue({ publish, waitForConfirms, close }),
       createChannel: jest.fn().mockResolvedValue({ consume, ack, nack, close, prefetch }),
-      close
+      close,
     };
     (amqp.connect as jest.Mock).mockResolvedValue(connection);
 
@@ -28,7 +28,7 @@ describe('RabbitMQService', () => {
       eventId: '1',
       occurredAt: '',
       correlationId: 'c',
-      payload: {}
+      payload: {},
     });
     await service.consume('q', async () => undefined);
     service.ack({} as any);
@@ -59,7 +59,7 @@ describe('RabbitMQService', () => {
     const connection: any = {
       createConfirmChannel: jest.fn().mockResolvedValue({ publish, waitForConfirms, close }),
       createChannel: jest.fn().mockResolvedValue({ consume, ack, nack, close, prefetch }),
-      close
+      close,
     };
     (amqp.connect as jest.Mock).mockResolvedValue(connection);
 

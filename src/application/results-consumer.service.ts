@@ -31,7 +31,7 @@ export class ResultsConsumerService implements OnModuleInit {
   constructor(
     private readonly rabbit: RabbitMQService,
     private readonly db: DatabaseService,
-    private readonly cache: CacheService
+    private readonly cache: CacheService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -72,7 +72,11 @@ export class ResultsConsumerService implements OnModuleInit {
    * Se a republicação falhar (broker fora), o erro sobe e o wrapper do
    * RabbitMQService faz nack com requeue, preservando a mensagem.
    */
-  private async republishOnFailure(message: ConsumeMessage, attempt: number, error: Error): Promise<void> {
+  private async republishOnFailure(
+    message: ConsumeMessage,
+    attempt: number,
+    error: Error,
+  ): Promise<void> {
     const headers = { ...message.properties.headers, 'x-retry-count': attempt + 1 };
 
     if (attempt >= RETRY_DELAYS_MS.length) {
@@ -84,7 +88,7 @@ export class ResultsConsumerService implements OnModuleInit {
     this.logger.warn(`falha ao aplicar evento (tentativa ${attempt + 1}): ${error.message}`);
     await this.rabbit.publishToQueue(RETRY_QUEUE, message.content, {
       headers,
-      expiration: String(RETRY_DELAYS_MS[attempt])
+      expiration: String(RETRY_DELAYS_MS[attempt]),
     });
   }
 
@@ -121,7 +125,9 @@ export class ResultsConsumerService implements OnModuleInit {
     const from = allowedFrom(to);
     const applied = await this.db.setJobStatus(jobId, null, from, to);
     if (!applied) {
-      this.logger.warn(`${eventType}: transição para ${to} ignorada — job ${jobId} não está em ${from.join('|')}`);
+      this.logger.warn(
+        `${eventType}: transição para ${to} ignorada — job ${jobId} não está em ${from.join('|')}`,
+      );
       return;
     }
     // status mudou: derruba o cache da lista do dono para não mostrar estado defasado

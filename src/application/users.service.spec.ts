@@ -7,7 +7,7 @@ describe('UsersService', () => {
     isUniqueViolation: jest.fn(),
     findUserById: jest.fn(),
     updateUserName: jest.fn(),
-    deactivateUser: jest.fn()
+    deactivateUser: jest.fn(),
   };
   let service: UsersService;
 
@@ -18,7 +18,11 @@ describe('UsersService', () => {
 
   it('creates user', async () => {
     db.createUser.mockResolvedValue(undefined);
-    const result = await service.createUser({ email: 'TEST@EXAMPLE.COM', name: '  Ana  ', password: 'secret' });
+    const result = await service.createUser({
+      email: 'TEST@EXAMPLE.COM',
+      name: '  Ana  ',
+      password: 'secret',
+    });
     expect(result.email).toBe('test@example.com');
     expect(result.name).toBe('Ana');
   });
@@ -26,18 +30,27 @@ describe('UsersService', () => {
   it('maps duplicate email to conflict', async () => {
     db.createUser.mockRejectedValue(new Error('duplicate'));
     db.isUniqueViolation.mockReturnValue(true);
-    await expect(service.createUser({ email: 'a@b.com', name: 'A', password: 'p' })).rejects.toThrow(ConflictException);
+    await expect(
+      service.createUser({ email: 'a@b.com', name: 'A', password: 'p' }),
+    ).rejects.toThrow(ConflictException);
   });
 
   it('rethrows unexpected create errors', async () => {
     db.createUser.mockRejectedValue(new Error('boom'));
     db.isUniqueViolation.mockReturnValue(false);
-    await expect(service.createUser({ email: 'a@b.com', name: 'A', password: 'p' })).rejects.toThrow('boom');
+    await expect(
+      service.createUser({ email: 'a@b.com', name: 'A', password: 'p' }),
+    ).rejects.toThrow('boom');
   });
 
   it('returns own user when ids match', async () => {
     db.findUserById.mockResolvedValue({ id: 'u1', email: 'e', name: 'n', active: true });
-    await expect(service.getOwnUser('u1', 'u1')).resolves.toEqual({ id: 'u1', email: 'e', name: 'n', active: true });
+    await expect(service.getOwnUser('u1', 'u1')).resolves.toEqual({
+      id: 'u1',
+      email: 'e',
+      name: 'n',
+      active: true,
+    });
   });
 
   it('rejects when own user is missing', async () => {

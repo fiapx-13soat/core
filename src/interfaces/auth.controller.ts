@@ -9,7 +9,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    private readonly db: DatabaseService
+    private readonly db: DatabaseService,
   ) {}
 
   @Post('/login')
@@ -19,7 +19,7 @@ export class AuthController {
       ownerId: result.userId,
       action: 'login',
       correlationId,
-      metadata: { email: body.email.toLowerCase() }
+      metadata: { email: body.email.toLowerCase() },
     });
     return result.tokens;
   }

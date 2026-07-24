@@ -5,7 +5,7 @@ import {
   GoneException,
   Injectable,
   NotFoundException,
-  PayloadTooLargeException
+  PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID, createHash } from 'crypto';
@@ -44,13 +44,13 @@ export class JobsService {
     private readonly rabbit: RabbitMQService,
     private readonly s3: S3Service,
     private readonly cache: CacheService,
-    private readonly config: ConfigService
+    private readonly config: ConfigService,
   ) {}
 
   async uploadVideo(
     userId: string,
     correlationId: string,
-    file?: Express.Multer.File
+    file?: Express.Multer.File,
   ): Promise<{ jobId: string; status: JobStatus }> {
     if (!file) {
       throw new BadRequestException('missing video file');
@@ -70,7 +70,12 @@ export class JobsService {
     const extension = file.originalname.slice(file.originalname.lastIndexOf('.'));
     const storageKey = `videos/${userId}/${videoId}${extension || '.mp4'}`;
 
-    await this.s3.upload(this.config.getOrThrow<string>('app.s3BucketVideos'), storageKey, file.buffer, file.mimetype);
+    await this.s3.upload(
+      this.config.getOrThrow<string>('app.s3BucketVideos'),
+      storageKey,
+      file.buffer,
+      file.mimetype,
+    );
 
     const jobId = randomUUID();
     await this.db.createVideoAndJob({
@@ -81,7 +86,7 @@ export class JobsService {
       sizeBytes: file.size,
       checksum,
       storageKey,
-      jobId
+      jobId,
     });
 
     const event: EventEnvelope = {
@@ -94,8 +99,8 @@ export class JobsService {
         jobId,
         videoStorageKey: storageKey,
         parameters: { fps: 1 },
-        ownerId: userId
-      }
+        ownerId: userId,
+      },
     };
 
     // QUEUED antes de publicar: o worker pode consumir e publicar job.started
@@ -114,7 +119,7 @@ export class JobsService {
       ownerId: userId,
       action: 'upload_video',
       correlationId,
-      metadata: { jobId, videoId }
+      metadata: { jobId, videoId },
     });
 
     jobsCreatedTotal.inc();
@@ -123,7 +128,7 @@ export class JobsService {
 
   async listJobs(
     userId: string,
-    query: { status?: string; from?: string; to?: string; cursor?: string; limit?: string }
+    query: { status?: string; from?: string; to?: string; cursor?: string; limit?: string },
   ): Promise<{ items: JobListItem[]; nextCursor: string | null }> {
     const limit = Math.min(Number(query.limit ?? 20), 100);
     const from = query.from ? new Date(query.from) : undefined;
@@ -137,7 +142,14 @@ export class JobsService {
       return { items, nextCursor: this.nextCursor(items, limit) };
     }
 
-    const rows = await this.db.listJobs({ ownerId: userId, status: query.status, from, to, cursor, limit });
+    const rows = await this.db.listJobs({
+      ownerId: userId,
+      status: query.status,
+      from,
+      to,
+      cursor,
+      limit,
+    });
     const items = rows.map((r) => this.toJobListItem(r));
     await this.cache.setEx(cacheKey, 10, JSON.stringify(items));
 
@@ -153,7 +165,7 @@ export class JobsService {
       videoId: row.video_id,
       status: row.status,
       createdAt: row.created_at,
-      downloadAvailable: row.status === JobStatus.COMPLETED && !!row.archive_storage_key
+      downloadAvailable: row.status === JobStatus.COMPLETED && !!row.archive_storage_key,
     };
   }
 
@@ -185,17 +197,26 @@ export class JobsService {
       errorCode: row.error_code,
       errorMessage: row.error_message,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 
-  async cancelJob(userId: string, correlationId: string, jobId: string): Promise<{ status: JobStatus }> {
+  async cancelJob(
+    userId: string,
+    correlationId: string,
+    jobId: string,
+  ): Promise<{ status: JobStatus }> {
     const job = await this.getJobRow(userId, jobId);
     if (isFinalStatus(job.status)) {
       throw new ConflictException('finalized jobs cannot be cancelled');
     }
 
-    const ok = await this.db.setJobStatus(jobId, userId, allowedFrom(JobStatus.CANCELLED), JobStatus.CANCELLED);
+    const ok = await this.db.setJobStatus(
+      jobId,
+      userId,
+      allowedFrom(JobStatus.CANCELLED),
+      JobStatus.CANCELLED,
+    );
     if (!ok) {
       throw new ConflictException('unable to cancel');
     }
@@ -207,17 +228,26 @@ export class JobsService {
         eventId: randomUUID(),
         occurredAt: new Date().toISOString(),
         correlationId,
-        payload: { jobId }
+        payload: { jobId },
       });
     } catch {
       throw new BadGatewayException('processing broker unavailable');
     }
 
-    await this.db.insertAuditLog({ ownerId: userId, action: 'cancel_job', correlationId, metadata: { jobId } });
+    await this.db.insertAuditLog({
+      ownerId: userId,
+      action: 'cancel_job',
+      correlationId,
+      metadata: { jobId },
+    });
     return { status: JobStatus.CANCELLED };
   }
 
-  async reprocessJob(userId: string, correlationId: string, jobId: string): Promise<{ jobId: string }> {
+  async reprocessJob(
+    userId: string,
+    correlationId: string,
+    jobId: string,
+  ): Promise<{ jobId: string }> {
     const job = await this.getJobRow(userId, jobId);
     const video = await this.db.getVideoById(job.video_id, userId);
     if (!video) {
@@ -233,7 +263,7 @@ export class JobsService {
       jobId: newJobId,
       ownerId: userId,
       videoId: job.video_id,
-      status: JobStatus.RECEIVED
+      status: JobStatus.RECEIVED,
     });
 
     await this.db.setJobStatus(newJobId, userId, allowedFrom(JobStatus.QUEUED), JobStatus.QUEUED);
@@ -249,8 +279,8 @@ export class JobsService {
           jobId: newJobId,
           ownerId: userId,
           videoStorageKey: video.storage_key,
-          parameters: { fps: 1 }
-        }
+          parameters: { fps: 1 },
+        },
       });
     } catch {
       await this.db.setJobStatus(newJobId, userId, allowedFrom(JobStatus.FAILED), JobStatus.FAILED);
@@ -260,7 +290,10 @@ export class JobsService {
     return { jobId: newJobId };
   }
 
-  async getDownloadLink(userId: string, jobId: string): Promise<{ url: string; expiresInSec: number }> {
+  async getDownloadLink(
+    userId: string,
+    jobId: string,
+  ): Promise<{ url: string; expiresInSec: number }> {
     const job = await this.getJobRow(userId, jobId);
     if (job.status !== JobStatus.COMPLETED || !job.archive_storage_key) {
       throw new ConflictException('job archive not available');
@@ -301,8 +334,10 @@ export class JobsService {
 
     const header = buffer.subarray(0, 16);
     const hasFtyp = buffer.subarray(0, 64).includes(Buffer.from('ftyp'));
-    const isRiffAvi = header.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'AVI ';
-    const isMkv = header[0] === 0x1a && header[1] === 0x45 && header[2] === 0xdf && header[3] === 0xa3;
+    const isRiffAvi =
+      header.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'AVI ';
+    const isMkv =
+      header[0] === 0x1a && header[1] === 0x45 && header[2] === 0xdf && header[3] === 0xa3;
     return hasFtyp || isRiffAvi || isMkv || ext === 'webm';
   }
 }

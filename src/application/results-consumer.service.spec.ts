@@ -2,15 +2,16 @@ import { ResultsConsumerService } from './results-consumer.service';
 import { JobStatus } from '../domain/job-status';
 import { jobsCompletedTotal, jobsFailedTotal } from '../infra/metrics';
 
-const counterValue = async (c: { get(): Promise<{ values: Array<{ value: number }> }> }): Promise<number> =>
-  (await c.get()).values[0]?.value ?? 0;
+const counterValue = async (c: {
+  get(): Promise<{ values: Array<{ value: number }> }>;
+}): Promise<number> => (await c.get()).values[0]?.value ?? 0;
 
 describe('ResultsConsumerService', () => {
   const rabbit: any = {
     consume: jest.fn(),
     ack: jest.fn(),
     nack: jest.fn(),
-    publishToQueue: jest.fn().mockResolvedValue(undefined)
+    publishToQueue: jest.fn().mockResolvedValue(undefined),
   };
   const db: any = { setJobStatus: jest.fn(), setArchive: jest.fn(), getJobByIdAnyOwner: jest.fn() };
   const cache: any = { invalidateOwnerJobs: jest.fn().mockResolvedValue(undefined) };
@@ -31,7 +32,10 @@ describe('ResultsConsumerService', () => {
   it('invalida o cache do dono ao aplicar uma transição (E1)', async () => {
     db.setJobStatus.mockResolvedValue(true);
     db.getJobByIdAnyOwner.mockResolvedValue({ owner_id: 'owner-9' });
-    const msg = (c: unknown) => ({ content: Buffer.from(JSON.stringify(c)), properties: { headers: {} } });
+    const msg = (c: unknown) => ({
+      content: Buffer.from(JSON.stringify(c)),
+      properties: { headers: {} },
+    });
     rabbit.consume.mockImplementation(async (_q: string, onMessage: any) => {
       await onMessage(msg({ eventType: 'ProcessingStarted', payload: { jobId: 'j1' } }));
     });
@@ -44,7 +48,10 @@ describe('ResultsConsumerService', () => {
   it('conta jobs_completed/failed só quando a transição terminal se aplica', async () => {
     const beforeC = await counterValue(jobsCompletedTotal);
     const beforeF = await counterValue(jobsFailedTotal);
-    const msg = (c: unknown) => ({ content: Buffer.from(JSON.stringify(c)), properties: { headers: {} } });
+    const msg = (c: unknown) => ({
+      content: Buffer.from(JSON.stringify(c)),
+      properties: { headers: {} },
+    });
 
     // COMPLETED aplica (transição válida), FAILED não (setJobStatus=false)
     db.setJobStatus.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
@@ -64,11 +71,16 @@ describe('ResultsConsumerService', () => {
     rabbit.consume.mockImplementation(async (_queue: string, onMessage: any) => {
       const msg = (content: unknown) => ({
         content: Buffer.from(JSON.stringify(content)),
-        properties: { headers: {} }
+        properties: { headers: {} },
       });
       messages.push(onMessage(msg({ eventType: 'ProcessingStarted', payload: { jobId: 'j1' } })));
       messages.push(
-        onMessage(msg({ eventType: 'ArchiveReady', payload: { jobId: 'j1', archiveStorageKey: 'zip', sizeBytes: 1 } }))
+        onMessage(
+          msg({
+            eventType: 'ArchiveReady',
+            payload: { jobId: 'j1', archiveStorageKey: 'zip', sizeBytes: 1 },
+          }),
+        ),
       );
       messages.push(onMessage(msg({ eventType: 'ProcessingCompleted', payload: { jobId: 'j1' } })));
       messages.push(onMessage(msg({ eventType: 'ProcessingFailed', payload: { jobId: 'j1' } })));
@@ -76,7 +88,12 @@ describe('ResultsConsumerService', () => {
 
     await service.onModuleInit();
     await Promise.all(messages);
-    expect(db.setJobStatus).toHaveBeenCalledWith('j1', null, [JobStatus.QUEUED], JobStatus.PROCESSING);
+    expect(db.setJobStatus).toHaveBeenCalledWith(
+      'j1',
+      null,
+      [JobStatus.QUEUED],
+      JobStatus.PROCESSING,
+    );
     expect(db.setArchive).toHaveBeenCalledWith('j1', 'zip', 1);
   });
 
@@ -85,8 +102,10 @@ describe('ResultsConsumerService', () => {
     rabbit.consume.mockImplementation(async (_queue: string, onMessage: any) => {
       // ArchiveReady sem archiveStorageKey — payload malformado
       await onMessage({
-        content: Buffer.from(JSON.stringify({ eventType: 'ArchiveReady', payload: { jobId: 'j1' } })),
-        properties: { headers: { 'x-retry-count': 1 } }
+        content: Buffer.from(
+          JSON.stringify({ eventType: 'ArchiveReady', payload: { jobId: 'j1' } }),
+        ),
+        properties: { headers: { 'x-retry-count': 1 } },
       });
     });
 
@@ -94,7 +113,7 @@ describe('ResultsConsumerService', () => {
 
     expect(rabbit.publishToQueue).toHaveBeenCalledWith('q.core.results.retry', expect.any(Buffer), {
       headers: { 'x-retry-count': 2 },
-      expiration: '5000'
+      expiration: '5000',
     });
     expect(rabbit.ack).toHaveBeenCalled();
   });
@@ -104,14 +123,14 @@ describe('ResultsConsumerService', () => {
     rabbit.consume.mockImplementation(async (_queue: string, onMessage: any) => {
       await onMessage({
         content: Buffer.from('not-json'),
-        properties: { headers: { 'x-retry-count': 4 } }
+        properties: { headers: { 'x-retry-count': 4 } },
       });
     });
 
     await service.onModuleInit();
 
     expect(rabbit.publishToQueue).toHaveBeenCalledWith('q.core.results.dlq', expect.any(Buffer), {
-      headers: { 'x-retry-count': 5 }
+      headers: { 'x-retry-count': 5 },
     });
   });
 
@@ -120,8 +139,10 @@ describe('ResultsConsumerService', () => {
     db.setJobStatus.mockResolvedValue(false);
     rabbit.consume.mockImplementation(async (_queue: string, onMessage: any) => {
       await onMessage({
-        content: Buffer.from(JSON.stringify({ eventType: 'ProcessingCompleted', payload: { jobId: 'j1' } })),
-        properties: { headers: {} }
+        content: Buffer.from(
+          JSON.stringify({ eventType: 'ProcessingCompleted', payload: { jobId: 'j1' } }),
+        ),
+        properties: { headers: {} },
       });
     });
 
@@ -134,8 +155,10 @@ describe('ResultsConsumerService', () => {
   it('acks unknown event types', async () => {
     rabbit.consume.mockImplementation(async (_queue: string, onMessage: any) => {
       await onMessage({
-        content: Buffer.from(JSON.stringify({ eventType: 'SomethingElse', payload: { jobId: 'j1' } })),
-        properties: { headers: {} }
+        content: Buffer.from(
+          JSON.stringify({ eventType: 'SomethingElse', payload: { jobId: 'j1' } }),
+        ),
+        properties: { headers: {} },
       });
     });
 

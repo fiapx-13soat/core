@@ -10,7 +10,7 @@ describe('controllers', () => {
   it('delegates auth and user actions', async () => {
     const authSvc: any = {
       login: jest.fn().mockResolvedValue({ userId: 'u1', tokens: { a: 1 } }),
-      refresh: jest.fn().mockResolvedValue({ b: 2 })
+      refresh: jest.fn().mockResolvedValue({ b: 2 }),
     };
     const db: any = { insertAuditLog: jest.fn() };
     const auth = new AuthController(authSvc, db);
@@ -22,7 +22,7 @@ describe('controllers', () => {
       createUser: jest.fn().mockResolvedValue({ id: 'u1' }),
       getOwnUser: jest.fn().mockResolvedValue({ id: 'u1' }),
       patchOwnUser: jest.fn().mockResolvedValue(undefined),
-      deleteOwnUser: jest.fn().mockResolvedValue(undefined)
+      deleteOwnUser: jest.fn().mockResolvedValue(undefined),
     };
     const users = new UsersController(usersSvc, db);
     await users.create({ email: 'e', name: 'n', password: 'p' });
@@ -39,13 +39,13 @@ describe('controllers', () => {
       cancelJob: jest.fn().mockResolvedValue({}),
       reprocessJob: jest.fn().mockResolvedValue({}),
       getDownloadLink: jest.fn().mockResolvedValue({}),
-      getNotificationInfo: jest.fn().mockResolvedValue({})
+      getNotificationInfo: jest.fn().mockResolvedValue({}),
     };
     const jobs = new JobsController(jobsSvc);
     const internal = new InternalController(jobsSvc);
     const health = new HealthController(
       { ready: jest.fn().mockResolvedValue(true) } as any,
-      { isHealthy: jest.fn().mockResolvedValue(true) } as any
+      { isHealthy: jest.fn().mockResolvedValue(true) } as any,
     );
     const metrics = new MetricsController();
     const videos = new VideosController(jobsSvc);

@@ -5,7 +5,7 @@ export enum JobStatus {
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
   CANCELLED = 'CANCELLED',
-  EXPIRED = 'EXPIRED'
+  EXPIRED = 'EXPIRED',
 }
 
 const transitions: Record<JobStatus, JobStatus[]> = {
@@ -15,7 +15,7 @@ const transitions: Record<JobStatus, JobStatus[]> = {
   [JobStatus.COMPLETED]: [JobStatus.EXPIRED],
   [JobStatus.FAILED]: [],
   [JobStatus.CANCELLED]: [],
-  [JobStatus.EXPIRED]: []
+  [JobStatus.EXPIRED]: [],
 };
 
 export function canTransition(from: JobStatus, to: JobStatus): boolean {
@@ -28,9 +28,13 @@ export function canTransition(from: JobStatus, to: JobStatus): boolean {
  * de estados a fonte única em vez de arrays repetidos nos serviços.
  */
 export function allowedFrom(target: JobStatus): JobStatus[] {
-  return (Object.keys(transitions) as JobStatus[]).filter((from) => transitions[from].includes(target));
+  return (Object.keys(transitions) as JobStatus[]).filter((from) =>
+    transitions[from].includes(target),
+  );
 }
 
 export function isFinalStatus(status: JobStatus): boolean {
-  return [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.EXPIRED].includes(status);
+  return [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED, JobStatus.EXPIRED].includes(
+    status,
+  );
 }

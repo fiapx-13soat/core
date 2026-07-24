@@ -16,5 +16,5 @@ export default registerAs('app', () => ({
   refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? '7'),
   uploadMaxBytes: Number(process.env.UPLOAD_MAX_BYTES ?? `${500 * 1024 * 1024}`),
   uploadRateLimitPerMinute: Number(process.env.UPLOAD_RATE_LIMIT_PER_MIN ?? '20'),
-  uploadRateLimitBurst: Number(process.env.UPLOAD_RATE_LIMIT_BURST ?? '5')
+  uploadRateLimitBurst: Number(process.env.UPLOAD_RATE_LIMIT_BURST ?? '5'),
 }));

@@ -13,7 +13,7 @@ describe('bootstrap', () => {
       useLogger: jest.fn(),
       useGlobalPipes: jest.fn(),
       get: jest.fn().mockReturnValue({ get: () => 1234 }),
-      listen
+      listen,
     };
     (NestFactory.create as jest.Mock).mockResolvedValue(app);
 

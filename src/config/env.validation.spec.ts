@@ -5,7 +5,7 @@ const complete = {
   AMQP_URL: 'amqp://x',
   S3_BUCKET_VIDEOS: 'v',
   S3_BUCKET_ARCHIVES: 'a',
-  JWT_SECRET: 's3cr3t'
+  JWT_SECRET: 's3cr3t',
 };
 
 describe('validateEnv', () => {
@@ -18,7 +18,7 @@ describe('validateEnv', () => {
     (missing) => {
       const config = { ...complete, [missing]: '' };
       expect(() => validateEnv(config)).toThrow(new RegExp(missing));
-    }
+    },
   );
 
   it('rejeita PORT fora de faixa', () => {

@@ -3,7 +3,9 @@ import { CorrelationMiddleware } from './correlation.middleware';
 describe('CorrelationMiddleware', () => {
   it('uses incoming correlation id', () => {
     const middleware = new CorrelationMiddleware();
-    const req: any = { header: (name: string) => (name === 'x-correlation-id' ? 'cid-1' : undefined) };
+    const req: any = {
+      header: (name: string) => (name === 'x-correlation-id' ? 'cid-1' : undefined),
+    };
     const res: any = { setHeader: jest.fn() };
     const next = jest.fn();
 

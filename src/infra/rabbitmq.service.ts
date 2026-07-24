@@ -39,12 +39,16 @@ export class RabbitMQService implements OnModuleDestroy {
     this.consumeChannel = await this.connection.createChannel();
   }
 
-  async publishConfirmed(exchange: string, routingKey: string, event: EventEnvelope): Promise<void> {
+  async publishConfirmed(
+    exchange: string,
+    routingKey: string,
+    event: EventEnvelope,
+  ): Promise<void> {
     await this.ensureConnected();
     const payload = Buffer.from(JSON.stringify(event));
     await this.confirmChannel!.publish(exchange, routingKey, payload, {
       contentType: 'application/json',
-      persistent: true
+      persistent: true,
     });
     await this.confirmChannel!.waitForConfirms();
   }
@@ -57,13 +61,13 @@ export class RabbitMQService implements OnModuleDestroy {
   async publishToQueue(
     queue: string,
     content: Buffer,
-    options: { headers?: Record<string, unknown>; expiration?: string } = {}
+    options: { headers?: Record<string, unknown>; expiration?: string } = {},
   ): Promise<void> {
     await this.ensureConnected();
     await this.confirmChannel!.publish('', queue, content, {
       contentType: 'application/json',
       persistent: true,
-      ...options
+      ...options,
     });
     await this.confirmChannel!.waitForConfirms();
   }

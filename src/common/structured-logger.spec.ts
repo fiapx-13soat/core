@@ -36,7 +36,12 @@ describe('StructuredLogger', () => {
 
   it('funde campos de mensagem-objeto na linha', () => {
     runWithCorrelation('c-1', () => logger.warn({ message: 'falhou', jobId: 'j1', attempt: 2 }));
-    expect(lastEntry()).toMatchObject({ message: 'falhou', jobId: 'j1', attempt: 2, correlationId: 'c-1' });
+    expect(lastEntry()).toMatchObject({
+      message: 'falhou',
+      jobId: 'j1',
+      attempt: 2,
+      correlationId: 'c-1',
+    });
   });
 
   it('error separa stack de context', () => {

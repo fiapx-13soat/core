@@ -7,7 +7,7 @@ describe('allowedFrom (origens de cada transição, coerente com canTransition)'
     [JobStatus.COMPLETED, [JobStatus.PROCESSING]],
     [JobStatus.FAILED, [JobStatus.QUEUED, JobStatus.PROCESSING]],
     [JobStatus.CANCELLED, [JobStatus.RECEIVED, JobStatus.QUEUED, JobStatus.PROCESSING]],
-    [JobStatus.EXPIRED, [JobStatus.COMPLETED]]
+    [JobStatus.EXPIRED, [JobStatus.COMPLETED]],
   ])('origens para %s', (target, expected) => {
     expect(allowedFrom(target as JobStatus).sort()).toEqual((expected as JobStatus[]).sort());
   });
