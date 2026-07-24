@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  HeadObjectCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
@@ -13,7 +18,7 @@ export class S3Service {
       region: this.config.get<string>('app.awsRegion'),
       endpoint: endpoint || undefined,
       forcePathStyle: Boolean(endpoint),
-      credentials: endpoint ? { accessKeyId: 'test', secretAccessKey: 'test' } : undefined
+      credentials: endpoint ? { accessKeyId: 'test', secretAccessKey: 'test' } : undefined,
     });
   }
 
@@ -23,8 +28,8 @@ export class S3Service {
         Bucket: bucket,
         Key: key,
         Body: body,
-        ContentType: contentType || 'application/octet-stream'
-      })
+        ContentType: contentType || 'application/octet-stream',
+      }),
     );
   }
 
@@ -39,7 +44,11 @@ export class S3Service {
 
   async presignedGet(bucket: string, key: string, maxSeconds = 900): Promise<string> {
     const expiresIn = Math.min(maxSeconds, 900);
-    const url = await getSignedUrl(this.client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn });
+    const url = await getSignedUrl(
+      this.client,
+      new GetObjectCommand({ Bucket: bucket, Key: key }),
+      { expiresIn },
+    );
 
     const publicEndpoint = this.config.get<string>('app.s3PublicEndpoint');
     if (!publicEndpoint) {
@@ -56,4 +65,3 @@ export class S3Service {
     return target.toString();
   }
 }
-

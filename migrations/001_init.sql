@@ -1,4 +1,4 @@
-iptcreate extension if not exists pgcrypto;
+create extension if not exists pgcrypto;
 
 create table if not exists users (
     id uuid primary key,

@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool, QueryResult, QueryResultRow } from 'pg';
 import { JobStatus } from '../domain/job-status';
+import { UserRow, JobRow, JobListRow, VideoRow } from './rows';
 
 export interface JobListFilters {
   ownerId: string;
@@ -33,26 +34,34 @@ export class DatabaseService implements OnModuleDestroy {
     return true;
   }
 
-  async createUser(input: { id: string; email: string; name: string; passwordHash: string }): Promise<void> {
+  async createUser(input: {
+    id: string;
+    email: string;
+    name: string;
+    passwordHash: string;
+  }): Promise<void> {
     await this.query(
       `insert into users (id, email, name, password_hash, active, created_at, updated_at)
        values ($1, $2, $3, $4, true, now(), now())`,
-      [input.id, input.email, input.name, input.passwordHash]
+      [input.id, input.email, input.name, input.passwordHash],
     );
   }
 
-  async findUserByEmail(email: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from users where email = $1', [email]);
+  async findUserByEmail(email: string): Promise<UserRow | null> {
+    const { rows } = await this.query<UserRow>('select * from users where email = $1', [email]);
     return rows[0] ?? null;
   }
 
-  async findUserById(id: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from users where id = $1', [id]);
+  async findUserById(id: string): Promise<UserRow | null> {
+    const { rows } = await this.query<UserRow>('select * from users where id = $1', [id]);
     return rows[0] ?? null;
   }
 
   async updateUserName(id: string, name: string): Promise<void> {
-    await this.query('update users set name = $2, updated_at = now() where id = $1 and active = true', [id, name]);
+    await this.query(
+      'update users set name = $2, updated_at = now() where id = $1 and active = true',
+      [id, name],
+    );
   }
 
   async deactivateUser(id: string): Promise<void> {
@@ -62,17 +71,22 @@ export class DatabaseService implements OnModuleDestroy {
   async saveRefreshToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
     await this.query(
       'insert into refresh_tokens (id, user_id, token_hash, expires_at, revoked, created_at) values (gen_random_uuid(), $1, $2, $3, false, now())',
-      [userId, tokenHash, expiresAt]
+      [userId, tokenHash, expiresAt],
     );
   }
 
-  async rotateRefreshToken(oldHash: string, newHash: string, userId: string, expiresAt: Date): Promise<boolean> {
+  async rotateRefreshToken(
+    oldHash: string,
+    newHash: string,
+    userId: string,
+    expiresAt: Date,
+  ): Promise<boolean> {
     const client = await this.pool.connect();
     try {
       await client.query('begin');
       const updated = await client.query(
         'update refresh_tokens set revoked = true where user_id = $1 and token_hash = $2 and revoked = false and expires_at > now()',
-        [userId, oldHash]
+        [userId, oldHash],
       );
       if (updated.rowCount !== 1) {
         await client.query('rollback');
@@ -80,7 +94,7 @@ export class DatabaseService implements OnModuleDestroy {
       }
       await client.query(
         'insert into refresh_tokens (id, user_id, token_hash, expires_at, revoked, created_at) values (gen_random_uuid(), $1, $2, $3, false, now())',
-        [userId, newHash, expiresAt]
+        [userId, newHash, expiresAt],
       );
       await client.query('commit');
       return true;
@@ -95,7 +109,7 @@ export class DatabaseService implements OnModuleDestroy {
   async findValidRefreshToken(tokenHash: string): Promise<{ user_id: string } | null> {
     const { rows } = await this.query<{ user_id: string }>(
       'select user_id from refresh_tokens where token_hash = $1 and revoked = false and expires_at > now()',
-      [tokenHash]
+      [tokenHash],
     );
     return rows[0] ?? null;
   }
@@ -123,13 +137,13 @@ export class DatabaseService implements OnModuleDestroy {
           input.contentType,
           input.sizeBytes,
           input.checksum,
-          input.storageKey
-        ]
+          input.storageKey,
+        ],
       );
       await client.query(
         `insert into processing_jobs (id, owner_id, video_id, status, created_at, updated_at)
          values ($1, $2, $3, $4, now(), now())`,
-        [input.jobId, input.ownerId, input.videoId, JobStatus.RECEIVED]
+        [input.jobId, input.ownerId, input.videoId, JobStatus.RECEIVED],
       );
       await client.query('commit');
     } catch (error) {
@@ -140,7 +154,12 @@ export class DatabaseService implements OnModuleDestroy {
     }
   }
 
-  async setJobStatus(jobId: string, ownerId: string | null, fromStatuses: JobStatus[], toStatus: JobStatus): Promise<boolean> {
+  async setJobStatus(
+    jobId: string,
+    ownerId: string | null,
+    fromStatuses: JobStatus[],
+    toStatus: JobStatus,
+  ): Promise<boolean> {
     const params: unknown[] = [toStatus, jobId];
     let sql = 'update processing_jobs set status = $1, updated_at = now() where id = $2';
     if (ownerId) {
@@ -155,28 +174,39 @@ export class DatabaseService implements OnModuleDestroy {
     return result.rowCount === 1;
   }
 
-  async createJob(input: { jobId: string; ownerId: string; videoId: string; status: JobStatus }): Promise<void> {
+  async createJob(input: {
+    jobId: string;
+    ownerId: string;
+    videoId: string;
+    status: JobStatus;
+  }): Promise<void> {
     await this.query(
       `insert into processing_jobs (id, owner_id, video_id, status, created_at, updated_at)
        values ($1, $2, $3, $4, now(), now())`,
-      [input.jobId, input.ownerId, input.videoId, input.status]
+      [input.jobId, input.ownerId, input.videoId, input.status],
     );
   }
 
-  async getJobById(jobId: string, ownerId: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from processing_jobs where id = $1 and owner_id = $2', [jobId, ownerId]);
+  async getJobById(jobId: string, ownerId: string): Promise<JobRow | null> {
+    const { rows } = await this.query<JobRow>(
+      'select * from processing_jobs where id = $1 and owner_id = $2',
+      [jobId, ownerId],
+    );
     return rows[0] ?? null;
   }
 
-  async getJobByIdAnyOwner(jobId: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from processing_jobs where id = $1', [jobId]);
+  async getJobByIdAnyOwner(jobId: string): Promise<JobRow | null> {
+    const { rows } = await this.query<JobRow>('select * from processing_jobs where id = $1', [
+      jobId,
+    ]);
     return rows[0] ?? null;
   }
 
-  async listJobs(filters: JobListFilters): Promise<any[]> {
+  async listJobs(filters: JobListFilters): Promise<JobListRow[]> {
     const values: unknown[] = [filters.ownerId];
     let idx = 2;
-    let sql = 'select id, video_id, status, created_at from processing_jobs where owner_id = $1';
+    let sql =
+      'select id, video_id, status, archive_storage_key, created_at from processing_jobs where owner_id = $1';
     if (filters.status) {
       sql += ` and status = $${idx++}`;
       values.push(filters.status);
@@ -195,12 +225,15 @@ export class DatabaseService implements OnModuleDestroy {
     }
     sql += ` order by created_at desc limit $${idx}`;
     values.push(filters.limit);
-    const { rows } = await this.query<any>(sql, values);
+    const { rows } = await this.query<JobListRow>(sql, values);
     return rows;
   }
 
-  async getVideoById(videoId: string, ownerId: string): Promise<any | null> {
-    const { rows } = await this.query<any>('select * from videos where id = $1 and owner_id = $2', [videoId, ownerId]);
+  async getVideoById(videoId: string, ownerId: string): Promise<VideoRow | null> {
+    const { rows } = await this.query<VideoRow>(
+      'select * from videos where id = $1 and owner_id = $2',
+      [videoId, ownerId],
+    );
     return rows[0] ?? null;
   }
 
@@ -212,9 +245,12 @@ export class DatabaseService implements OnModuleDestroy {
         `insert into result_archives (id, job_id, storage_key, size_bytes, created_at)
          values (gen_random_uuid(), $1, $2, $3, now())
          on conflict (job_id) do update set storage_key = excluded.storage_key, size_bytes = excluded.size_bytes`,
-        [jobId, storageKey, sizeBytes]
+        [jobId, storageKey, sizeBytes],
       );
-      await client.query('update processing_jobs set archive_storage_key = $2, updated_at = now() where id = $1', [jobId, storageKey]);
+      await client.query(
+        'update processing_jobs set archive_storage_key = $2, updated_at = now() where id = $1',
+        [jobId, storageKey],
+      );
       await client.query('commit');
     } catch (error) {
       await client.query('rollback');
@@ -224,11 +260,16 @@ export class DatabaseService implements OnModuleDestroy {
     }
   }
 
-  async insertAuditLog(input: { ownerId: string | null; action: string; correlationId: string; metadata: Record<string, unknown> }): Promise<void> {
+  async insertAuditLog(input: {
+    ownerId: string | null;
+    action: string;
+    correlationId: string;
+    metadata: Record<string, unknown>;
+  }): Promise<void> {
     await this.query(
       `insert into audit_logs (id, owner_id, action, correlation_id, metadata_json, created_at)
        values (gen_random_uuid(), $1, $2, $3, $4::jsonb, now())`,
-      [input.ownerId, input.action, input.correlationId, JSON.stringify(input.metadata)]
+      [input.ownerId, input.action, input.correlationId, JSON.stringify(input.metadata)],
     );
   }
 
@@ -240,4 +281,3 @@ export class DatabaseService implements OnModuleDestroy {
     return maybe.code === '23505';
   }
 }
-

@@ -1,8 +1,11 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import envConfig from './config/env';
+import { validateEnv } from './config/env.validation';
 import { CorrelationMiddleware } from './common/correlation.middleware';
+import { MetricsInterceptor } from './common/metrics.interceptor';
 import { UploadRateLimitGuard } from './common/upload-rate-limit.guard';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { DatabaseService } from './infra/database.service';
@@ -23,17 +26,17 @@ import { MetricsController } from './interfaces/metrics.controller';
 
 export function jwtOptionsFactory(config: ConfigService) {
   return {
-    secret: config.get<string>('app.jwtSecret')
+    secret: config.get<string>('app.jwtSecret'),
   };
 }
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [envConfig] }),
+    ConfigModule.forRoot({ isGlobal: true, load: [envConfig], validate: validateEnv }),
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: jwtOptionsFactory
-    })
+      useFactory: jwtOptionsFactory,
+    }),
   ],
   controllers: [
     HealthController,
@@ -42,9 +45,10 @@ export function jwtOptionsFactory(config: ConfigService) {
     AuthController,
     VideosController,
     JobsController,
-    InternalController
+    InternalController,
   ],
   providers: [
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
     UploadRateLimitGuard,
     JwtStrategy,
     DatabaseService,
@@ -54,12 +58,11 @@ export function jwtOptionsFactory(config: ConfigService) {
     AuthService,
     UsersService,
     JobsService,
-    ResultsConsumerService
-  ]
+    ResultsConsumerService,
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(CorrelationMiddleware).forRoutes('*');
   }
 }
-

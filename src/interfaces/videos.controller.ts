@@ -17,9 +17,8 @@ export class VideosController {
   upload(
     @CurrentUserId() userId: string,
     @CorrelationId() correlationId: string,
-    @UploadedFile() file?: Express.Multer.File
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     return this.jobs.uploadVideo(userId, correlationId, file);
   }
 }
-

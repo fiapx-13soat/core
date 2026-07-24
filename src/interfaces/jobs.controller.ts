@@ -11,7 +11,8 @@ export class JobsController {
   @Get()
   list(
     @CurrentUserId() userId: string,
-    @Query() query: { status?: string; from?: string; to?: string; cursor?: string; limit?: string }
+    @Query()
+    query: { status?: string; from?: string; to?: string; cursor?: string; limit?: string },
   ) {
     return this.jobs.listJobs(userId, query);
   }
@@ -25,7 +26,7 @@ export class JobsController {
   cancel(
     @CurrentUserId() userId: string,
     @CorrelationId() correlationId: string,
-    @Param('id') id: string
+    @Param('id') id: string,
   ) {
     return this.jobs.cancelJob(userId, correlationId, id);
   }
@@ -34,7 +35,7 @@ export class JobsController {
   reprocess(
     @CurrentUserId() userId: string,
     @CorrelationId() correlationId: string,
-    @Param('id') id: string
+    @Param('id') id: string,
   ) {
     return this.jobs.reprocessJob(userId, correlationId, id);
   }
@@ -44,4 +45,3 @@ export class JobsController {
     return this.jobs.getDownloadLink(userId, id);
   }
 }
-

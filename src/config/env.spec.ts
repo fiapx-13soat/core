@@ -30,7 +30,7 @@ describe('env config', () => {
     const cfg = envConfig();
     expect(cfg.port).toBe(8080);
     expect(cfg.awsRegion).toBe('us-east-1');
-    expect(cfg.jwtSecret).toBe('change-me');
+    expect(cfg.jwtSecret).toBe(''); // sem default — validateEnv exige JWT_SECRET no boot
     expect(cfg.accessTokenTtlMinutes).toBe(15);
     expect(cfg.refreshTokenTtlDays).toBe(7);
   });
@@ -49,4 +49,3 @@ describe('env config', () => {
     expect(cfg.s3BucketArchives).toBe('archives');
   });
 });
-

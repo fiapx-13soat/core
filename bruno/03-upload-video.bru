@@ -1,0 +1,34 @@
+meta {
+  name: 03 Upload de vídeo
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/v1/videos
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:multipart-form {
+  video: @file(fixtures/sample.mp4)
+}
+
+script:post-response {
+  bru.setVar("jobId", res.body.jobId);
+}
+
+assert {
+  res.status: eq 201
+  res.body.jobId: isDefined
+  res.body.status: eq QUEUED
+}
+
+docs {
+  Multipart, campo `video`. O fixture (bruno/fixtures/sample.mp4) é um mp4 mínimo só para o teste.
+  Retorna { jobId, status: QUEUED }. O jobId fica guardado para os próximos passos.
+}

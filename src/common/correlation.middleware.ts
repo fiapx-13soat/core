@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
+import { runWithCorrelation } from './correlation-context';
 
 export interface RequestWithContext extends Request {
   correlationId: string;
@@ -14,7 +15,7 @@ export class CorrelationMiddleware implements NestMiddleware {
     const correlationId = incoming && incoming.length > 0 ? incoming : randomUUID();
     req.correlationId = correlationId;
     res.setHeader('X-Correlation-Id', correlationId);
-    next();
+    // roda o resto da requisição no escopo do ALS para os logs carregarem o id
+    runWithCorrelation(correlationId, () => next());
   }
 }
-

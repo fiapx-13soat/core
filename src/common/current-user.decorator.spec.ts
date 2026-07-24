@@ -1,4 +1,9 @@
-import { correlationId, correlationIdFactory, currentUserId, currentUserIdFactory } from './current-user.decorator';
+import {
+  correlationId,
+  correlationIdFactory,
+  currentUserId,
+  currentUserIdFactory,
+} from './current-user.decorator';
 
 describe('current user decorators', () => {
   it('reads user id and correlation id from request', () => {
@@ -15,4 +20,3 @@ describe('current user decorators', () => {
     expect(currentUserId({} as any)).toBe('');
   });
 });
-

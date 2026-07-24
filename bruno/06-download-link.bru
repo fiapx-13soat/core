@@ -1,0 +1,31 @@
+meta {
+  name: 06 Link de download (pre-signed)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/jobs/{{jobId}}/download-link
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+script:post-response {
+  if (res.body && res.body.url) {
+    bru.setVar("downloadUrl", res.body.url);
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.url: isDefined
+}
+
+docs {
+  Só funciona com o job COMPLETED (senão 409). Devolve { url, expiresInSec: 900 } —
+  a pre-signed URL do ZIP no S3 (Floci local). Guarda a url para o passo 07.
+  Se o ZIP tiver expirado no bucket, responde 410 e o job vira EXPIRED.
+}

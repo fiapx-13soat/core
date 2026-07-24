@@ -7,9 +7,12 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
-    "lint": "echo 'lint not configured'",
+    "lint": "eslint 'src/**/*.ts'",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "format": "prettier --write 'src/**/*.ts'",
+    "test:int": "TEST_INTEGRATION=1 jest --runInBand"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.842.0",
@@ -37,6 +40,9 @@
     "@nestjs/cli": "^10.4.5",
     "@nestjs/schematics": "^10.1.4",
     "@nestjs/testing": "^10.4.2",
+    "@testcontainers/postgresql": "^10.28.0",
+    "@testcontainers/rabbitmq": "^10.28.0",
+    "@testcontainers/redis": "^10.28.0",
     "@types/amqplib": "^0.10.5",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",
@@ -44,11 +50,16 @@
     "@types/node": "^22.5.4",
     "@types/passport-jwt": "^4.0.1",
     "@types/pg": "^8.11.6",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-prettier": "^5.5.6",
     "jest": "^29.7.0",
+    "prettier": "^3.9.6",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }
 }
-

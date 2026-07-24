@@ -9,7 +9,7 @@ describe('AuthService', () => {
     findUserByEmail: jest.fn(),
     findValidRefreshToken: jest.fn(),
     rotateRefreshToken: jest.fn(),
-    saveRefreshToken: jest.fn()
+    saveRefreshToken: jest.fn(),
   };
   const jwt: any = { signAsync: jest.fn() };
   const config: any = { get: jest.fn() };
@@ -85,4 +85,3 @@ describe('AuthService', () => {
     expect(db.saveRefreshToken).toHaveBeenCalled();
   });
 });
-

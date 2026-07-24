@@ -13,4 +13,3 @@ describe('AppModule', () => {
     expect(forRoutes).toHaveBeenCalledWith('*');
   });
 });
-

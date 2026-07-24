@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface TokenBucket {
@@ -18,31 +24,35 @@ export class UploadRateLimitGuard implements CanActivate {
   }
 
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest<{ user?: { sub: string }; ip: string; res: any }>();
+    const req = context
+      .switchToHttp()
+      .getRequest<{ user?: { sub: string }; ip: string; res: any }>();
     const key = req.user?.sub ?? req.ip;
-    if (!this.allow(key)) {
-      req.res.setHeader('Retry-After', '60');
+    const retryAfter = this.tryConsume(key);
+    if (retryAfter !== null) {
+      // segundos reais até haver 1 token, não um valor fixo (CA-C13)
+      req.res.setHeader('Retry-After', String(retryAfter));
       throw new HttpException('upload rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
     }
     return true;
   }
 
-  private allow(key: string): boolean {
+  /** Consome 1 token; retorna null se permitido, ou os segundos até liberar se negado. */
+  private tryConsume(key: string): number | null {
     const now = Date.now();
     const found = this.buckets.get(key);
     if (!found) {
       this.buckets.set(key, { tokens: this.burst - 1, lastRefillMs: now });
-      return true;
+      return null;
     }
 
     const elapsedSeconds = (now - found.lastRefillMs) / 1000;
     found.tokens = Math.min(this.burst, found.tokens + elapsedSeconds * this.ratePerSecond);
     found.lastRefillMs = now;
     if (found.tokens < 1) {
-      return false;
+      return Math.max(1, Math.ceil((1 - found.tokens) / this.ratePerSecond));
     }
     found.tokens -= 1;
-    return true;
+    return null;
   }
 }
-
