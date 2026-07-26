@@ -9,6 +9,7 @@ import { MetricsInterceptor } from './common/metrics.interceptor';
 import { UploadRateLimitGuard } from './common/upload-rate-limit.guard';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { DatabaseService } from './infra/database.service';
+import { MigrationsService } from './infra/migrations.service';
 import { CacheService } from './infra/cache.service';
 import { S3Service } from './infra/s3.service';
 import { RabbitMQService } from './infra/rabbitmq.service';
@@ -51,6 +52,7 @@ export function jwtOptionsFactory(config: ConfigService) {
     { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
     UploadRateLimitGuard,
     JwtStrategy,
+    MigrationsService,
     DatabaseService,
     CacheService,
     S3Service,

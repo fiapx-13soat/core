@@ -76,8 +76,8 @@ Obrigatórias (o boot falha sem elas): `DATABASE_URL`, `AMQP_URL`, `S3_BUCKET_VI
 | `UPLOAD_MAX_BYTES` | `524288000` | Limite de upload (500 MB) |
 | `UPLOAD_RATE_LIMIT_PER_MIN` / `_BURST` | `20` / `5` | Rate limit de upload |
 
-O schema do banco está em [`migrations/001_init.sql`](migrations/001_init.sql) (versionado também
-no infra, em `local/postgres/init/`).
+O schema está em [`migrations/`](migrations/) e é **aplicado no próprio boot** (self-migration,
+idempotente) — o serviço é dono das suas tabelas. O infra só provisiona o banco vazio e a role.
 
 ## Docker
 
