@@ -6,7 +6,6 @@ on:
   pull_request:
 
 permissions:
-  id-token: write
   contents: read
 
 env:
@@ -35,16 +34,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Learner Lab: sem OIDC. Credenciais temporárias do lab vêm dos secrets
+      # (rotacionam a cada sessão do lab — recolar antes de publicar).
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.FIAPX_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
       - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
       - run: |
           npm ci
           npm run build
-          docker build -t $ECR_REPOSITORY:${{ github.sha }} .
-          docker tag $ECR_REPOSITORY:${{ github.sha }} ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ github.sha }}
-          docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:${{ github.sha }}
+          REG=${{ steps.login-ecr.outputs.registry }}
+          docker build -t $REG/$ECR_REPOSITORY:${{ github.sha }} -t $REG/$ECR_REPOSITORY:latest .
+          docker push $REG/$ECR_REPOSITORY:${{ github.sha }}
+          docker push $REG/$ECR_REPOSITORY:latest
 
