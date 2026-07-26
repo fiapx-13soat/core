@@ -42,11 +42,24 @@ export class S3Service {
     }
   }
 
-  async presignedGet(bucket: string, key: string, maxSeconds = 900): Promise<string> {
-    const expiresIn = Math.min(maxSeconds, 900);
+  async presignedGet(
+    bucket: string,
+    key: string,
+    maxSeconds = 900,
+    filename?: string,
+  ): Promise<string> {
+    const expiresIn = Math.min(maxSeconds, 604800); // S3 permite até 7 dias
+    const downloadName = filename ?? key.split('/').pop() ?? 'download.zip';
     const url = await getSignedUrl(
       this.client,
-      new GetObjectCommand({ Bucket: bucket, Key: key }),
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        // Sem isto o navegador abre os bytes na aba em vez de baixar. O
+        // response-content-disposition entra assinado na URL e o S3 devolve o header.
+        ResponseContentDisposition: `attachment; filename="${downloadName}"`,
+        ResponseContentType: 'application/zip',
+      }),
       { expiresIn },
     );
 

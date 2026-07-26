@@ -334,7 +334,15 @@ export class JobsService {
     if (job.status === JobStatus.COMPLETED && job.archive_storage_key) {
       const bucket = this.config.getOrThrow<string>('app.s3BucketArchives');
       if (await this.s3.exists(bucket, job.archive_storage_key)) {
-        downloadUrl = await this.s3.presignedGet(bucket, job.archive_storage_key, 900);
+        // TTL de 24h (não 15 min): é um link de e-mail, aberto mais tarde. Nome amigável
+        // derivado do vídeo. Na AWS o limite real é a validade da credencial da sessão.
+        const base = video.filename.replace(/\.[^.]+$/, '');
+        downloadUrl = await this.s3.presignedGet(
+          bucket,
+          job.archive_storage_key,
+          86400,
+          `${base}-frames.zip`,
+        );
       }
     }
 
