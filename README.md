@@ -1,64 +1,83 @@
-# fiapx-core (NestJS)
+# fiapx-core
 
-Servico Core do FIAP X em TypeScript/NestJS, responsavel pelo fluxo sincrono: usuarios, autenticacao, upload, consulta e orquestracao de jobs com RabbitMQ.
+**A API do FIAP X.** Serviço síncrono em NestJS/TypeScript: conta e autenticação, upload de vídeo,
+consulta de jobs e download do resultado. É a porta de entrada do sistema — recebe o vídeo,
+persiste, guarda no S3 e pede o processamento ao **workers** por mensageria; quando o resultado
+volta, disponibiliza o ZIP.
 
-## Arquitetura aplicada
+> Faz parte do sistema **FIAP X**. A bancada que sobe tudo junto (RabbitMQ, S3, workers,
+> notification) vive no repo **[fiapx-infra](https://github.com/fiapx-13soat/infra)** — comece por
+> lá se quer o fluxo ponta a ponta.
 
-Estrutura organizada em camadas (Clean Architecture pragmatica):
+## Começar
 
-- `src/domain`: regras de dominio puras (status e transicoes de job)
-- `src/application`: casos de uso (auth, users, jobs, consumer)
-- `src/infra`: adapters de banco, cache, S3 e RabbitMQ
-- `src/interfaces`: controllers HTTP
-- `src/common` e `src/auth`: middleware, guards e estrategia JWT
-
-## O que esta implementado
-
-- CRUD da propria conta de usuario (`POST /users`, `GET|PATCH|DELETE /users/{id}`)
-- Senhas com Argon2id
-- Login e refresh com rotacao de refresh token (hash SHA-256 no banco)
-- Upload de video com validacao (extensao + magic bytes), limite de tamanho e checksum
-- Persistencia em PostgreSQL
-- Upload para S3
-- Publicacao com RabbitMQ em canal confirm (`ProcessingRequested`, `ProcessingCancelled`)
-- Consumo de `q.core.results` com transicao idempotente de status
-- `GET /jobs` com filtros (`status`, `from`, `to`) e cursor (`nextCursor`)
-- `GET /jobs/{id}`, cancelamento, reprocessamento e download-link pre-assinado (max 15 min)
-- Endpoint interno: `GET /internal/jobs/{jobId}/notification-info`
-- Auditoria basica (`login`, `upload_video`, `cancel_job`, `delete_account`)
-- `GET /health`, `GET /ready`, `GET /metrics`
-- Rate limit de upload com `429` + `Retry-After`
-
-## Variaveis de ambiente
-
-- `PORT` (default `8080`)
-- `DATABASE_URL`
-- `AMQP_URL`
-- `REDIS_URL` (opcional)
-- `AWS_REGION`
-- `AWS_ENDPOINT_URL` (opcional; localstack/floci)
-- `S3_BUCKET_VIDEOS`
-- `S3_BUCKET_ARCHIVES`
-- `S3_PUBLIC_ENDPOINT` (opcional)
-- `JWT_SECRET`
-- `ACCESS_TOKEN_TTL_MINUTES` (default `15`)
-- `REFRESH_TOKEN_TTL_DAYS` (default `7`)
-- `UPLOAD_MAX_BYTES` (default `524288000`)
-- `UPLOAD_RATE_LIMIT_PER_MIN` (default `20`)
-- `UPLOAD_RATE_LIMIT_BURST` (default `5`)
-
-## Banco de dados
-
-A migracao inicial esta em `migrations/001_init.sql`.
-
-## Rodar local
+O jeito mais simples de ver funcionando é a bancada do infra (`make up-dev`). Para trabalhar só
+neste serviço, com RabbitMQ e S3 no ar:
 
 ```bash
-npm install
-npm run build
-npm test
-npm run start:dev
+cp .env.example .env    # ajuste se precisar
+npm ci
+npm run start:dev       # sobe em http://localhost:8080
 ```
+
+```bash
+npm test                # unitários
+npm run test:int        # integração (Postgres, Redis e RabbitMQ via Testcontainers; requer Docker)
+npm run lint            # ESLint + Prettier
+```
+
+## Arquitetura
+
+Camadas no estilo Clean Architecture pragmático — o domínio no centro, adapters na borda:
+
+```
+src/
+├── domain/        regras puras (status do job e suas transições)
+├── application/   casos de uso (auth, users, jobs) e o consumer de resultados
+├── infra/         adapters: Postgres, Redis, S3, RabbitMQ
+├── interfaces/    controllers HTTP
+├── auth/          estratégia JWT e guards
+└── common/        logger estruturado, correlationId, métricas
+```
+
+## API
+
+Todas as rotas de negócio sob `/api/v1`; observabilidade na raiz.
+
+| Área | Rotas |
+|---|---|
+| Conta | `POST /users` · `GET\|PATCH\|DELETE /users/{id}` |
+| Auth | `POST /auth/login` · `POST /auth/refresh` |
+| Vídeo | `POST /videos` (multipart, campo `video`) |
+| Jobs | `GET /jobs` (filtros `status`/`from`/`to`, cursor) · `GET /jobs/{id}` · `.../cancel` · `.../reprocess` · `.../download-link` |
+| Interno | `GET /internal/jobs/{jobId}/notification-info` (consumido pelo notification) |
+| Saúde | `GET /health` · `GET /ready` · `GET /metrics` |
+
+Destaques de implementação: senhas com **Argon2id**; refresh token com rotação (hash SHA-256 no
+banco); upload validado por extensão **e magic bytes**, com limite de tamanho, checksum e rate
+limit (`429` + `Retry-After`); publicação no RabbitMQ em **canal confirm**; consumo de
+`q.core.results` com transição de status **idempotente**; download por **pre-signed URL** (máx. 15
+min). Uma coleção **[Bruno](bruno/)** exercita a jornada inteira de forma clicável.
+
+## Variáveis de ambiente
+
+Obrigatórias (o boot falha sem elas): `DATABASE_URL`, `AMQP_URL`, `S3_BUCKET_VIDEOS`,
+`S3_BUCKET_ARCHIVES`, `JWT_SECRET`.
+
+| Opcional | Default | Para quê |
+|---|---|---|
+| `PORT` | `8080` | Porta HTTP |
+| `REDIS_URL` | — | Cache (sem ele, sem cache) |
+| `AWS_REGION` | `us-east-1` | Região do S3 |
+| `AWS_ENDPOINT_URL` | — | S3 emulado (Floci) local; **vazio na AWS** |
+| `S3_PUBLIC_ENDPOINT` | — | Reescreve o host da pre-signed URL para o navegador |
+| `ACCESS_TOKEN_TTL_MINUTES` | `15` | Validade do access token |
+| `REFRESH_TOKEN_TTL_DAYS` | `7` | Validade do refresh token |
+| `UPLOAD_MAX_BYTES` | `524288000` | Limite de upload (500 MB) |
+| `UPLOAD_RATE_LIMIT_PER_MIN` / `_BURST` | `20` / `5` | Rate limit de upload |
+
+O schema do banco está em [`migrations/001_init.sql`](migrations/001_init.sql) (versionado também
+no infra, em `local/postgres/init/`).
 
 ## Docker
 
@@ -69,7 +88,8 @@ docker run --rm -p 8080:8080 --env-file .env fiapx-core
 
 ## CI/CD
 
-Workflow em `.github/workflows/ci.yml`:
-
-1. Build + testes Node.
-2. Push de imagem para ECR (`fiapx-core`) no `main` usando OIDC (`FIAPX_GITHUB_ACTIONS_ROLE_ARN`).
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml): a cada PR, **lint + build + testes**
+(unitários e integração). No merge para `main`, builda e publica a imagem no **ECR** (`fiapx-core`,
+tags `sha` e `latest`). Autenticação por credencial de sessão do AWS Academy Learner Lab (secrets
+`AWS_ACCESS_KEY_ID`/`SECRET`/`SESSION_TOKEN`) — detalhes e o fluxo de deploy no
+[runbook do infra](https://github.com/fiapx-13soat/infra/blob/main/terraform/README.md).
