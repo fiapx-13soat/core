@@ -5,7 +5,8 @@ import { DatabaseService } from '../infra/database.service';
 import { CacheService } from '../infra/cache.service';
 import { JobStatus, allowedFrom } from '../domain/job-status';
 import { jobsCompletedTotal, jobsFailedTotal } from '../infra/metrics';
-import { runWithCorrelation } from '../common/correlation-context';
+import { runWithCorrelation, addEventFields } from '../common/correlation-context';
+import { emitCanonicalEvent } from '../common/canonical-event';
 
 const RESULTS_QUEUE = 'q.core.results';
 const RETRY_QUEUE = 'q.core.results.retry';
@@ -38,13 +39,26 @@ export class ResultsConsumerService implements OnModuleInit {
       // roda no escopo do correlationId da mensagem para os logs do consumo carregarem o id
       await runWithCorrelation(this.correlationIdOf(message), async () => {
         const attempt = Number(message.properties.headers?.['x-retry-count'] ?? 0);
+        const start = Date.now();
+        let eventType: string | undefined;
+        let outcome: 'ok' | 'error' = 'ok';
         try {
           const data = JSON.parse(message.content.toString()) as ResultEvent;
+          eventType = data.eventType;
+          addEventFields({ eventType, jobId: data.payload?.jobId });
           await this.applyResultEvent(data);
         } catch (error) {
+          outcome = 'error';
           await this.republishOnFailure(message, attempt, error as Error);
         }
         this.rabbit.ack(message);
+        emitCanonicalEvent({
+          event: 'result_consumed',
+          eventType,
+          attempt,
+          outcome,
+          durationMs: Date.now() - start,
+        });
       });
     });
   }

@@ -16,6 +16,7 @@ import { EventEnvelope, RabbitMQService } from '../infra/rabbitmq.service';
 import { S3Service } from '../infra/s3.service';
 import { JobStatus, isFinalStatus, allowedFrom } from '../domain/job-status';
 import { JobRow, JobListRow } from '../infra/rows';
+import { addEventFields } from '../common/correlation-context';
 import { jobsCreatedTotal } from '../infra/metrics';
 
 export interface JobListItem {
@@ -88,6 +89,9 @@ export class JobsService {
       storageKey,
       jobId,
     });
+
+    // enriquece o evento canônico da requisição de upload
+    addEventFields({ jobId, videoId, sizeBytes: file.size, contentType: file.mimetype });
 
     const event: EventEnvelope = {
       eventType: 'ProcessingRequested',
