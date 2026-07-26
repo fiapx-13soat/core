@@ -327,23 +327,19 @@ export class JobsService {
       throw new NotFoundException('job not found');
     }
 
-    // Link direto do ZIP no e-mail de conclusão: pré-assinado (15 min), só quando o job está
-    // COMPLETED e o arquivo ainda existe. O host é reescrito para S3_PUBLIC_ENDPOINT, como no
-    // GET /jobs/{id}/download-link, para o navegador do usuário conseguir baixar.
+    // Link direto do ZIP no e-mail de conclusão. Checa a EXISTÊNCIA no S3, não o status no banco:
+    // o worker grava o ZIP antes de publicar job.completed, então o arquivo já está lá quando o
+    // notification consulta — mesmo que o Core ainda não tenha gravado o archive_storage_key
+    // (corrida entre os consumidores do mesmo evento). Para um job que falhou, o ZIP não existe →
+    // sem link. Chave: a gravada, ou a convenção `archives/{jobId}.zip` (fonte: workers Job.java).
     let downloadUrl: string | undefined;
-    if (job.status === JobStatus.COMPLETED && job.archive_storage_key) {
-      const bucket = this.config.getOrThrow<string>('app.s3BucketArchives');
-      if (await this.s3.exists(bucket, job.archive_storage_key)) {
-        // TTL de 24h (não 15 min): é um link de e-mail, aberto mais tarde. Nome amigável
-        // derivado do vídeo. Na AWS o limite real é a validade da credencial da sessão.
-        const base = video.filename.replace(/\.[^.]+$/, '');
-        downloadUrl = await this.s3.presignedGet(
-          bucket,
-          job.archive_storage_key,
-          86400,
-          `${base}-frames.zip`,
-        );
-      }
+    const bucket = this.config.getOrThrow<string>('app.s3BucketArchives');
+    const archiveKey = job.archive_storage_key ?? `archives/${jobId}.zip`;
+    if (await this.s3.exists(bucket, archiveKey)) {
+      // TTL de 24h (não 15 min): é um link de e-mail, aberto mais tarde. Nome amigável derivado
+      // do vídeo. Na AWS o limite real é a validade da credencial da sessão.
+      const base = video.filename.replace(/\.[^.]+$/, '');
+      downloadUrl = await this.s3.presignedGet(bucket, archiveKey, 86400, `${base}-frames.zip`);
     }
 
     return { ownerEmail: user.email, videoFilename: video.filename, downloadUrl };
