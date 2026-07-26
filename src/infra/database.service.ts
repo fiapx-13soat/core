@@ -174,6 +174,17 @@ export class DatabaseService implements OnModuleDestroy {
     return result.rowCount === 1;
   }
 
+  async setJobError(
+    jobId: string,
+    errorCode: string | null,
+    errorMessage: string | null,
+  ): Promise<void> {
+    await this.query(
+      'update processing_jobs set error_code = $2, error_message = $3, updated_at = now() where id = $1',
+      [jobId, errorCode, errorMessage],
+    );
+  }
+
   async createJob(input: {
     jobId: string;
     ownerId: string;

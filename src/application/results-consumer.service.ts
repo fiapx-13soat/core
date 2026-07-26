@@ -21,6 +21,8 @@ interface ResultEvent {
     jobId: string;
     archiveStorageKey?: string;
     sizeBytes?: number;
+    errorCode?: string;
+    errorMessage?: string;
   };
 }
 
@@ -112,9 +114,19 @@ export class ResultsConsumerService implements OnModuleInit {
         }
         await this.db.setArchive(jobId, evt.payload.archiveStorageKey, evt.payload.sizeBytes ?? 0);
         break;
-      case 'ProcessingFailed':
-        await this.transition(evt.eventType, jobId, JobStatus.FAILED);
+      case 'ProcessingFailed': {
+        const applied = await this.transition(evt.eventType, jobId, JobStatus.FAILED);
+        // grava o motivo (errorCode/errorMessage) só quando a transição valeu — para o job
+        // detail expor por que falhou, alinhado ao e-mail de erro.
+        if (applied) {
+          await this.db.setJobError(
+            jobId,
+            evt.payload.errorCode ?? null,
+            evt.payload.errorMessage ?? null,
+          );
+        }
         break;
+      }
       default:
         break;
     }
@@ -122,19 +134,20 @@ export class ResultsConsumerService implements OnModuleInit {
 
   // Transição inválida não é falha de infra (ex.: job cancelado que ainda recebe o resultado do
   // worker): loga e segue — mandar para retry só repetiria uma transição que nunca será válida.
-  private async transition(eventType: string, jobId: string, to: JobStatus): Promise<void> {
+  private async transition(eventType: string, jobId: string, to: JobStatus): Promise<boolean> {
     const from = allowedFrom(to);
     const applied = await this.db.setJobStatus(jobId, null, from, to);
     if (!applied) {
       this.logger.warn(
         `${eventType}: transição para ${to} ignorada — job ${jobId} não está em ${from.join('|')}`,
       );
-      return;
+      return false;
     }
     await this.invalidateOwnerCache(jobId);
     // conta o estado terminal uma vez só: em replay/duplicata a transição não se aplica
     if (to === JobStatus.COMPLETED) jobsCompletedTotal.inc();
     else if (to === JobStatus.FAILED) jobsFailedTotal.inc();
+    return true;
   }
 
   // best-effort: uma falha ao invalidar o cache não pode derrubar o consumo
