@@ -314,7 +314,9 @@ export class JobsService {
     return { url, expiresInSec: 900 };
   }
 
-  async getNotificationInfo(jobId: string): Promise<{ ownerEmail: string; videoFilename: string }> {
+  async getNotificationInfo(
+    jobId: string,
+  ): Promise<{ ownerEmail: string; videoFilename: string; downloadUrl?: string }> {
     const job = await this.db.getJobByIdAnyOwner(jobId);
     if (!job) {
       throw new NotFoundException('job not found');
@@ -324,7 +326,19 @@ export class JobsService {
     if (!user || !video) {
       throw new NotFoundException('job not found');
     }
-    return { ownerEmail: user.email, videoFilename: video.filename };
+
+    // Link direto do ZIP no e-mail de conclusão: pré-assinado (15 min), só quando o job está
+    // COMPLETED e o arquivo ainda existe. O host é reescrito para S3_PUBLIC_ENDPOINT, como no
+    // GET /jobs/{id}/download-link, para o navegador do usuário conseguir baixar.
+    let downloadUrl: string | undefined;
+    if (job.status === JobStatus.COMPLETED && job.archive_storage_key) {
+      const bucket = this.config.getOrThrow<string>('app.s3BucketArchives');
+      if (await this.s3.exists(bucket, job.archive_storage_key)) {
+        downloadUrl = await this.s3.presignedGet(bucket, job.archive_storage_key, 900);
+      }
+    }
+
+    return { ownerEmail: user.email, videoFilename: video.filename, downloadUrl };
   }
 
   private isValidVideo(filename: string, buffer: Buffer): boolean {
