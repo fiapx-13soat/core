@@ -1,3 +1,4 @@
+import './otel'; // primeiro import: instrumenta antes de pg/amqplib/ioredis serem carregados
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';

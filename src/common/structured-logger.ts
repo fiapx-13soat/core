@@ -1,4 +1,5 @@
 import { LoggerService } from '@nestjs/common';
+import { trace } from '@opentelemetry/api';
 import { getCorrelationId } from './correlation-context';
 
 type Level = 'log' | 'error' | 'warn' | 'debug' | 'verbose';
@@ -54,6 +55,8 @@ export class StructuredLogger implements LoggerService {
       time: new Date().toISOString(),
       context,
       correlationId: getCorrelationId(),
+      // traceId do span OTel ativo (quando ligado) — correlaciona log ↔ trace no Jaeger.
+      traceId: trace.getActiveSpan()?.spanContext().traceId,
     };
 
     if (message !== null && typeof message === 'object') {

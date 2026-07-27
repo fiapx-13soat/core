@@ -6,9 +6,11 @@ import envConfig from './config/env';
 import { validateEnv } from './config/env.validation';
 import { CorrelationMiddleware } from './common/correlation.middleware';
 import { MetricsInterceptor } from './common/metrics.interceptor';
+import { CanonicalEventInterceptor } from './common/canonical-event.interceptor';
 import { UploadRateLimitGuard } from './common/upload-rate-limit.guard';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { DatabaseService } from './infra/database.service';
+import { MigrationsService } from './infra/migrations.service';
 import { CacheService } from './infra/cache.service';
 import { S3Service } from './infra/s3.service';
 import { RabbitMQService } from './infra/rabbitmq.service';
@@ -49,8 +51,10 @@ export function jwtOptionsFactory(config: ConfigService) {
   ],
   providers: [
     { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: CanonicalEventInterceptor },
     UploadRateLimitGuard,
     JwtStrategy,
+    MigrationsService,
     DatabaseService,
     CacheService,
     S3Service,

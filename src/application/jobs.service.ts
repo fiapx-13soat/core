@@ -16,6 +16,7 @@ import { EventEnvelope, RabbitMQService } from '../infra/rabbitmq.service';
 import { S3Service } from '../infra/s3.service';
 import { JobStatus, isFinalStatus, allowedFrom } from '../domain/job-status';
 import { JobRow, JobListRow } from '../infra/rows';
+import { addEventFields } from '../common/correlation-context';
 import { jobsCreatedTotal } from '../infra/metrics';
 
 export interface JobListItem {
@@ -88,6 +89,9 @@ export class JobsService {
       storageKey,
       jobId,
     });
+
+    // enriquece o evento canônico da requisição de upload
+    addEventFields({ jobId, videoId, sizeBytes: file.size, contentType: file.mimetype });
 
     const event: EventEnvelope = {
       eventType: 'ProcessingRequested',
@@ -310,7 +314,9 @@ export class JobsService {
     return { url, expiresInSec: 900 };
   }
 
-  async getNotificationInfo(jobId: string): Promise<{ ownerEmail: string; videoFilename: string }> {
+  async getNotificationInfo(
+    jobId: string,
+  ): Promise<{ ownerEmail: string; videoFilename: string; downloadUrl?: string }> {
     const job = await this.db.getJobByIdAnyOwner(jobId);
     if (!job) {
       throw new NotFoundException('job not found');
@@ -320,7 +326,23 @@ export class JobsService {
     if (!user || !video) {
       throw new NotFoundException('job not found');
     }
-    return { ownerEmail: user.email, videoFilename: video.filename };
+
+    // Link direto do ZIP no e-mail de conclusão. Checa a EXISTÊNCIA no S3, não o status no banco:
+    // o worker grava o ZIP antes de publicar job.completed, então o arquivo já está lá quando o
+    // notification consulta — mesmo que o Core ainda não tenha gravado o archive_storage_key
+    // (corrida entre os consumidores do mesmo evento). Para um job que falhou, o ZIP não existe →
+    // sem link. Chave: a gravada, ou a convenção `archives/{jobId}.zip` (fonte: workers Job.java).
+    let downloadUrl: string | undefined;
+    const bucket = this.config.getOrThrow<string>('app.s3BucketArchives');
+    const archiveKey = job.archive_storage_key ?? `archives/${jobId}.zip`;
+    if (await this.s3.exists(bucket, archiveKey)) {
+      // TTL de 24h (não 15 min): é um link de e-mail, aberto mais tarde. Nome amigável derivado
+      // do vídeo. Na AWS o limite real é a validade da credencial da sessão.
+      const base = video.filename.replace(/\.[^.]+$/, '');
+      downloadUrl = await this.s3.presignedGet(bucket, archiveKey, 86400, `${base}-frames.zip`);
+    }
+
+    return { ownerEmail: user.email, videoFilename: video.filename, downloadUrl };
   }
 
   private isValidVideo(filename: string, buffer: Buffer): boolean {
